@@ -21,11 +21,12 @@ class WorkAtom {
                     quark_size_t x_idx, quark_size_t y_idx)
     : quarks(quarks), num_quarks(num_quarks), x_idx(x_idx), y_idx(y_idx) {};
 
+  __host__ void update_quarks(quarks_iterator_t new_quarks)  { quarks = new_quarks; }
   __host__ __device__ quark_size_t get_num_quarks() const { return num_quarks; }
   __host__ __device__ quark_size_t get_x_idx() const { return x_idx; }
   __host__ __device__ quark_size_t get_y_idx() const { return y_idx; }
-  __host__ __device__ quarks_iterator_t begin() { return quarks; };
-  __host__ __device__ quarks_iterator_t end() { return quarks + num_quarks; };
+  __host__ __device__ quarks_iterator_t begin() const { return quarks; };
+  __host__ __device__ quarks_iterator_t end() const { return quarks + num_quarks; };
 
  private:
   quarks_iterator_t quarks;
@@ -46,33 +47,14 @@ class WorkTile {
   __host__ WorkTile(atoms_iterator_t atoms, atom_size_t num_atoms)
     : atoms(atoms), num_atoms(num_atoms) {};
 
+  __host__ void update_atoms(atoms_iterator_t new_atoms)  { atoms = new_atoms; }
   __host__ __device__ atom_size_t get_num_atoms() const { return num_atoms; }
-  __host__ __device__ atoms_iterator_t begin() { return atoms; };
-  __host__ __device__ atoms_iterator_t end() { return atoms + num_atoms; };
+  __host__ __device__ atoms_iterator_t begin() const { return atoms; };
+  __host__ __device__ atoms_iterator_t end() const { return atoms + num_atoms; };
 
  private:
   atoms_iterator_t atoms;
   atom_size_t num_atoms;
-};
-
-/**
- * @brief Class for work tileset. Stores work tiles.
- */
-template <typename tiles_type, typename tile_size_type = std::size_t>
-class TileSet {
- public:
-  using tiles_iterator_t = tiles_type*; 
-  using tile_size_t = tile_size_type;
-
- __host__ TileSet() : tiles(nullptr), num_tiles(0) {}
- __host__ TileSet(tiles_iterator_t tiles, tile_size_t num_tiles)
-    : tiles(tiles), num_tiles(num_tiles) {};
-
- __host__ __device__ tile_size_t get_num_tiles() const { return num_tiles; }
-
- private:
-  tiles_iterator_t tiles;
-  tile_size_t num_tiles;
 };
 
 /**
@@ -90,8 +72,7 @@ class Partitioner {
     A.sort_by_row(); 
   };
 
-  __host__ vector_t<WorkAtom<quarks_t>> partition_atoms_static(std::size_t M0, 
-                                                              std::size_t K0) {                                                      
+  __host__ void partition_atoms_static(std::size_t M0, std::size_t K0) {                                                      
 
     error::throw_if_exception((M0 == 0 && K0 == 0), 
       "partition_atoms_static(): Both M0 and K0 cannot be zero!\n");
@@ -144,11 +125,9 @@ class Partitioner {
     }
 
     static_atoms = true;
-
-    return work_atoms;
   }
 
-  __host__ vector_t<WorkAtom<quarks_t>> partition_atoms_dynamic(std::size_t nnzs_per_atom) {
+  __host__ void partition_atoms_dynamic(std::size_t nnzs_per_atom) {
 
     error::throw_if_exception((nnzs_per_atom == 0), 
       "partition_atoms_dynamic(): nnzs_per_atom cannot be zero!\n");
@@ -179,11 +158,9 @@ class Partitioner {
     }
 
     static_atoms = false;
-
-    return work_atoms;
   }
 
-  __host__ vector_t<WorkTile<quarks_t>> partition_tiles_static(std::size_t M0, std::size_t K0) {
+  __host__ void partition_tiles_static(std::size_t M0, std::size_t K0) {
 
     error::throw_if_exception((quarks.empty()), 
       "partition_tiles_static(): Need to partition atoms first!\n");
@@ -236,11 +213,9 @@ class Partitioner {
     for (std::size_t tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
       work_tiles[tile_idx] = WorkTile<quarks_t>(&work_atoms[tiles_offsets[tile_idx]], tiles_num_atoms[tile_idx]);
     }
-
-    return work_tiles;
   }
 
-  __host__ vector_t<WorkTile<quarks_t>> partition_tiles_dynamic(std::size_t num_atoms_per_tile) {
+  __host__ void partition_tiles_dynamic(std::size_t num_atoms_per_tile) {
 
     error::throw_if_exception((quarks.empty()), 
       "partition_tiles_dynamic(): Need to partition atoms first!\n");
@@ -260,9 +235,39 @@ class Partitioner {
       std::size_t real_num_atoms = std::min(num_atoms_per_tile, num_atoms - start_idx);
       work_tiles[tile_idx] = WorkTile<quarks_t>(&work_atoms[start_idx], real_num_atoms);
     }
-
-    return work_tiles;
   }
+
+  __host__ void prepare_gpu() {
+
+    error::throw_if_exception((work_tiles.empty()), 
+      "prepare_gpu(): Empty tiles! Need to partition work atoms and tiles first.\n");
+
+    // Prepare quarks for device
+    d_quarks = quarks;
+
+    // Prepare atoms for device, rewrite address for quarks
+    vector_t<WorkAtom<quarks_t>, memory_space_t::host> temp_atoms = work_atoms;
+    quarks_t* d_quarks_ptr = thrust::raw_pointer_cast(d_quarks.data());
+    size_t quarks_offset = 0;
+    for (size_t atom_idx = 0; atom_idx < num_atoms; atom_idx++) {
+      temp_atoms[atom_idx].update_quarks(d_quarks_ptr + quarks_offset);
+      quarks_offset += temp_atoms[atom_idx].get_num_quarks();
+    }
+    d_work_atoms = temp_atoms;
+
+    // Prepare tiles for device, rewrite address for atoms
+    vector_t<WorkTile<quarks_t>, memory_space_t::host> temp_tiles = work_tiles;
+    WorkAtom<quarks_t>* d_atoms_ptr = thrust::raw_pointer_cast(d_work_atoms.data());
+    size_t atoms_offset = 0;
+    for (size_t tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
+      temp_tiles[tile_idx].update_atoms(d_atoms_ptr + atoms_offset);
+      atoms_offset += temp_tiles[tile_idx].get_num_atoms();
+    }
+    d_work_tiles = temp_tiles;
+  }
+
+  __host__ vector_t<WorkTile<quarks_t>>& get_work_tiles() { return d_work_tiles; }
+  __host__ std::size_t get_num_tiles() { return num_tiles; }
 
  private:
   // Input matrix A in COO format
@@ -277,6 +282,11 @@ class Partitioner {
   // Data structure and variables needed for tile partition
   vector_t<WorkTile<quarks_t>, memory_space_t::host> work_tiles;
   std::size_t num_tiles_x, num_tiles_y, num_tiles;
+
+  // Data structures needed for GPU
+  vector_t<quarks_t> d_quarks;
+  vector_t<WorkAtom<quarks_t>> d_work_atoms;
+  vector_t<WorkTile<quarks_t>> d_work_tiles;
 };
 
 } // namespace loops
