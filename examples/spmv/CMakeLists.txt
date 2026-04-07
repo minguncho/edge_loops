@@ -6,7 +6,6 @@ set(SOURCES
   work_oriented.cu
   merge_path.cu
   thread_mapped_edge.cu
-  thread_mapped_edge_track.cu
 )
 
 foreach(SOURCE IN LISTS SOURCES)

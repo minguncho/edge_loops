@@ -4,14 +4,14 @@
 */
 
 #include "helpers.hxx"
-#include <loops/schedule_edge.hxx>
 #include <loops/container/formats.hxx>
 #include <loops/container/vector.hxx>
+#include <loops/memory.hxx>
+#include <loops/schedule_edge.hxx>
 #include <loops/util/launch.hxx>
 #include <loops/util/device.hxx>
 #include <loops/util/partitioner.hxx>
 #include <loops/util/tracker.hxx>
-#include <loops/memory.hxx>
 #include <iostream>
 
 using namespace loops;
@@ -91,15 +91,15 @@ int main(int argc, char** argv) {
   cudaStreamSynchronize(stream);
   timer.stop();
 
-  std::cout << "thread_mapped_edge," << mtx.dataset << "," << A.rows << ","
-            << A.cols << "," << A.nnzs << "," << timer.milliseconds()
-            << std::endl;
-
   // Validation.
   if (parameters.validate) {
     csr_t<index_t, offset_t, type_t> A_csr(A);
     cpu::validate(parameters, A_csr, B, Z);
   }
+
+  std::cout << "thread_mapped_edge," << mtx.dataset << "," << A.rows << ","
+            << A.cols << "," << A.nnzs << "," << timer.milliseconds()
+            << std::endl;
 
   // Output nz tracker report
   tracker.generate_output("thread_mapped_edge");
