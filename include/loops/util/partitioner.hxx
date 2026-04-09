@@ -67,21 +67,25 @@ template <typename index_t,
 class Partitioner {
  public:
 
-  __host__ Partitioner(coo_t<index_t, value_t, memory_space_t::host> &A): A(A) { 
+  __host__ Partitioner(coo_t<index_t, value_t, memory_space_t::host> &A)
+    : A(A), is_partitioned(false) { 
+
     // Prepare for partition
     A.sort_by_row(); 
   };
 
-  __host__ void partition_atoms_static(std::size_t M0, std::size_t K0) {                                                      
+  __host__ void partition_coordinate_space(std::size_t M0, std::size_t K0,
+                                           std::size_t M1, std::size_t K1) {
 
-    error::throw_if_exception((M0 == 0 && K0 == 0), 
-      "partition_atoms_static(): Both M0 and K0 cannot be zero!\n");
-
-    error::throw_if_exception((M0 <= 0 || K0 <= 0), 
-      "partition_atoms_static(): M0 and K0 cannot be negative!\n");
+    /**
+     * Step 1: Partition quarks into atoms in coordinate space.
+     */
+    // Validate input parameters
+    error::throw_if_exception((M0 <= 0 || K0 <= 0) || (M1 <= 0 || K1 <= 0), 
+      "partition_coordinate_space(): Invalid size of atom or tile, cannot be <= 0!\n");
 
     error::throw_if_exception((M0 > A.rows || K0 > A.cols),
-      std::string("partition_atoms_static(): M0 and K0 exceeding limit!\n")
+      std::string("partition_coordinate_space(): M0 and K0 exceeding limit!\n")
       + "  {M0: " + std::to_string(M0) + "} > {num_rows: " + std::to_string(A.rows) + "}\n"
       + "  {K0: " + std::to_string(K0) + "} > {num_cols: " + std::to_string(A.cols) + "}\n");
 
@@ -111,10 +115,10 @@ class Partitioner {
     }
 
     // Fill in the address for atom's assigned quarks
-    vector_t<std::size_t, memory_space_t::host> current_pos = atoms_offsets;
+    vector_t<std::size_t, memory_space_t::host> current_atom_pos = atoms_offsets;
     for (std::size_t quark_idx = 0; quark_idx < A.nnzs; quark_idx++) {
       size_t atom_idx = (A.row_indices[quark_idx] / M0) * num_atoms_y + (A.col_indices[quark_idx] / K0);
-      size_t dest_idx = current_pos[atom_idx]++;
+      size_t dest_idx = current_atom_pos[atom_idx]++;
       quarks[dest_idx] = quark_idx;
     }
 
@@ -124,16 +128,68 @@ class Partitioner {
                                                 (atom_idx / num_atoms_y), (atom_idx % num_atoms_y));
     }
 
-    static_atoms = true;
+    /**
+     * Step 2: Partition atoms into tiles in coordinate space.
+     */
+    // Validate input parameters
+    error::throw_if_exception((M1 > num_atoms_x || K1 > num_atoms_y),
+      std::string("partition_coordinate_space(): M1 and K1 exceeding limit!\n")
+      + "  {M1: " + std::to_string(M1) + "} > {num_atoms_x: " + std::to_string(num_atoms_x) + "}\n"
+      + "  {K1: " + std::to_string(K1) + "} > {num_atoms_y: " + std::to_string(num_atoms_y) + "}\n");
+
+    num_tiles_x = (num_atoms_x + M1 - 1) / M1;
+    num_tiles_y = (num_atoms_y + K1 - 1) / K1;
+    num_tiles = num_tiles_x * num_tiles_y;
+
+    // Reset work tiles
+    work_tiles.clear();
+    work_tiles.resize(num_tiles);
+
+    // Get number of atoms per tiles
+    vector_t<std::size_t, memory_space_t::host> tiles_num_atoms(num_tiles, 0);
+    for (std::size_t atom_idx = 0; atom_idx < num_atoms; atom_idx++) {
+      size_t tile_idx = (work_atoms[atom_idx].get_x_idx() / M1) * num_tiles_y + (work_atoms[atom_idx].get_y_idx() / K1);
+      tiles_num_atoms[tile_idx]++;
+    }
+
+    // Prefix sum for tiles_num_atoms to get starting position for each tile
+    vector_t<std::size_t, memory_space_t::host> tiles_offsets(num_tiles + 1, 0);
+    for (std::size_t tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
+      tiles_offsets[tile_idx + 1] = tiles_offsets[tile_idx] + tiles_num_atoms[tile_idx];
+    }
+
+    // Reorder the work atoms based on their tile idx
+    vector_t<WorkAtom<quarks_t>, memory_space_t::host> sorted_work_atoms(num_atoms);
+    vector_t<std::size_t, memory_space_t::host> current_tile_pos = tiles_offsets;
+    for (std::size_t atom_idx = 0; atom_idx < num_atoms; atom_idx++) {
+      size_t tile_idx = (work_atoms[atom_idx].get_x_idx() / M1) * num_tiles_y + (work_atoms[atom_idx].get_y_idx() / K1);
+      size_t dest_idx = current_tile_pos[tile_idx]++;
+      sorted_work_atoms[dest_idx] = work_atoms[atom_idx];
+    }
+
+    // Replace the work atoms with the sorted 
+    work_atoms = std::move(sorted_work_atoms);
+
+    // Assign each tile with corresponding range of work atoms
+    for (std::size_t tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
+      work_tiles[tile_idx] = WorkTile<quarks_t>(&work_atoms[tiles_offsets[tile_idx]], tiles_num_atoms[tile_idx]);
+    }
+
+    is_partitioned = true;
   }
 
-  __host__ void partition_atoms_dynamic(std::size_t nnzs_per_atom) {
-
+  __host__ void partition_position_space(std::size_t nnzs_per_atom, 
+                                         std::size_t num_atoms_per_tile) {
+    
+    /**
+     * Step 1: Partition quarks into atoms in position space.
+     */
+    // Validate input parameters
     error::throw_if_exception((nnzs_per_atom == 0), 
-      "partition_atoms_dynamic(): nnzs_per_atom cannot be zero!\n");
+      "partition_position_space(): nnzs_per_atom cannot be zero!\n");
 
     error::throw_if_exception((nnzs_per_atom > A.nnzs), 
-      "partition_atoms_dynamic(): nnzs_per_atom cannot be greater than NNZ of A!\n");
+      "partition_position_space(): nnzs_per_atom cannot be greater than NNZ of A!\n");
 
     // Reset quarks
     quarks.clear();
@@ -157,71 +213,9 @@ class Partitioner {
       }
     }
 
-    static_atoms = false;
-  }
-
-  __host__ void partition_tiles_static(std::size_t M0, std::size_t K0) {
-
-    error::throw_if_exception((quarks.empty()), 
-      "partition_tiles_static(): Need to partition atoms first!\n");
-
-    error::throw_if_exception((!static_atoms), 
-      "partition_tiles_static(): Atoms must be static!\n");
-
-    error::throw_if_exception((M0 == 0 || K0 == 0), 
-      "partition_tiles_static(): M0 and K0 cannot be zero!\n");
-
-    error::throw_if_exception((M0 > num_atoms_x || K0 > num_atoms_y),
-      std::string("partition_tiles_static(): M0 and K0 exceeding limit!\n")
-      + "  {M0: " + std::to_string(M0) + "} > {num_atoms_x: " + std::to_string(num_atoms_x) + "}\n"
-      + "  {K0: " + std::to_string(K0) + "} > {num_atoms_y: " + std::to_string(num_atoms_y) + "}\n");
-
-    num_tiles_x = (num_atoms_x + M0 - 1) / M0;
-    num_tiles_y = (num_atoms_y + K0 - 1) / K0;
-    num_tiles = num_tiles_x * num_tiles_y;
-
-    // Reset work tiles
-    work_tiles.clear();
-    work_tiles.resize(num_tiles);
-
-    // Get number of atoms per tiles
-    vector_t<std::size_t, memory_space_t::host> tiles_num_atoms(num_tiles, 0);
-    for (std::size_t atom_idx = 0; atom_idx < num_atoms; atom_idx++) {
-      size_t tile_idx = (work_atoms[atom_idx].get_x_idx() / M0) * num_tiles_y + (work_atoms[atom_idx].get_y_idx() / K0);
-      tiles_num_atoms[tile_idx]++;
-    }
-
-    // Prefix sum for tiles_num_atoms to get starting position for each tile
-    vector_t<std::size_t, memory_space_t::host> tiles_offsets(num_tiles + 1, 0);
-    for (std::size_t tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
-      tiles_offsets[tile_idx + 1] = tiles_offsets[tile_idx] + tiles_num_atoms[tile_idx];
-    }
-
-    // Reorder the work atoms based on their tile idx
-    vector_t<WorkAtom<quarks_t>, memory_space_t::host> sorted_work_atoms(num_atoms);
-    vector_t<std::size_t, memory_space_t::host> current_pos = tiles_offsets;
-    for (std::size_t atom_idx = 0; atom_idx < num_atoms; atom_idx++) {
-      size_t tile_idx = (work_atoms[atom_idx].get_x_idx() / M0) * num_tiles_y + (work_atoms[atom_idx].get_y_idx() / K0);
-      size_t dest_idx = current_pos[tile_idx]++;
-      sorted_work_atoms[dest_idx] = work_atoms[atom_idx];
-    }
-
-    // Replace the work atoms with the sorted 
-    work_atoms = std::move(sorted_work_atoms);
-
-    // Assign each tile with corresponding range of work atoms
-    for (std::size_t tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
-      work_tiles[tile_idx] = WorkTile<quarks_t>(&work_atoms[tiles_offsets[tile_idx]], tiles_num_atoms[tile_idx]);
-    }
-  }
-
-  __host__ void partition_tiles_dynamic(std::size_t num_atoms_per_tile) {
-
-    error::throw_if_exception((quarks.empty()), 
-      "partition_tiles_dynamic(): Need to partition atoms first!\n");
-
-    error::throw_if_exception((static_atoms), 
-      "partition_tiles_dynamic(): Atoms must be dynamic!\n");
+    /**
+     * Step 2: Partition atoms into tiles in position space.
+     */
 
     num_tiles = (num_atoms + num_atoms_per_tile - 1) / num_atoms_per_tile;
     
@@ -235,12 +229,14 @@ class Partitioner {
       std::size_t real_num_atoms = std::min(num_atoms_per_tile, num_atoms - start_idx);
       work_tiles[tile_idx] = WorkTile<quarks_t>(&work_atoms[start_idx], real_num_atoms);
     }
+
+    is_partitioned = true;
   }
 
   __host__ void prepare_gpu() {
 
-    error::throw_if_exception((work_tiles.empty()), 
-      "prepare_gpu(): Empty tiles! Need to partition work atoms and tiles first.\n");
+    error::throw_if_exception(!is_partitioned, 
+      "prepare_gpu(): Need to partition work atoms and tiles first.\n");
 
     // Prepare quarks for device
     d_quarks = quarks;
@@ -277,11 +273,12 @@ class Partitioner {
   vector_t<quarks_t, memory_space_t::host> quarks;
   vector_t<WorkAtom<quarks_t>, memory_space_t::host> work_atoms;
   std::size_t num_atoms_x, num_atoms_y, num_atoms;
-  bool static_atoms;
 
   // Data structure and variables needed for tile partition
   vector_t<WorkTile<quarks_t>, memory_space_t::host> work_tiles;
   std::size_t num_tiles_x, num_tiles_y, num_tiles;
+
+  bool is_partitioned; // Indicates if partition happened
 
   // Data structures needed for GPU
   vector_t<quarks_t> d_quarks;

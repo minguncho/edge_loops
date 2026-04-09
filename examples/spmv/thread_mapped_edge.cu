@@ -54,8 +54,8 @@ int main(int argc, char **argv) {
   generate::random::uniform_distribution(B.begin(), B.begin(), 1, 10);
 
   Partitioner<index_t, type_t, quarks_t> partitioner(A);
-  partitioner.partition_atoms_static(1, 1);
-  partitioner.partition_tiles_static(1, A.cols);
+  partitioner.partition_coordinate_space(1, 1, 1, A.cols);
+  //partitioner.partition_position_space(2, 2);
   partitioner.prepare_gpu();
 
   using setup_t =
