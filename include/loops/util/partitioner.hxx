@@ -3,6 +3,11 @@
 #include <loops/range.hxx>
 #include <loops/error.hxx>
 
+/*
+ * Note: Current version only supports work quark as a non-zero entry of A.
+ *        Works with only SpMV at the moment.
+ */
+
 namespace loops {
 
 /**
