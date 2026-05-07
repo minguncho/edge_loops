@@ -33,6 +33,9 @@ template <typename index_t,
           memory_space_t space>
 struct csc_t;
 
+template <typename index_t, typename value_t, memory_space_t space>
+struct tensor_t;
+
 }  // namespace loops
 
 #include <loops/container/coo.hxx>

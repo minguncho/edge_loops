@@ -1,21 +1,22 @@
 /**
- * Generated Loops code
+ * Generated Loops code (WIP)
  */
 
 #include "helpers.hxx"
 #include <iostream>
 #include <loops/container/formats.hxx>
+#include <loops/container/tensor.hxx>
 #include <loops/container/vector.hxx>
 #include <loops/memory.hxx>
 #include <loops/schedule_edge.hxx>
 #include <loops/util/device.hxx>
 #include <loops/util/launch.hxx>
-#include <loops/util/partitioner.hxx>
+#include <loops/util/partitioner_edge.hxx>
 #include <loops/util/tracker.hxx>
 
 using namespace loops;
 
-template <typename setup_t, typename index_t, typename type_t>
+/*template <typename setup_t, typename index_t, typename type_t>
 __global__ void thread_mapped_edge(setup_t config, const index_t *row_indices,
                                    const index_t *col_indices,
                                    const type_t *values, const type_t *B,
@@ -33,7 +34,7 @@ __global__ void thread_mapped_edge(setup_t config, const index_t *row_indices,
       }
     }
   }
-}
+}*/
 
 int main(int argc, char **argv) {
   using index_t = int;
@@ -44,20 +45,27 @@ int main(int argc, char **argv) {
   parameters_t parameters(argc, argv);
 
   matrix_market_t<index_t, offset_t, type_t> mtx;
-  coo_t<index_t, type_t, memory_space_t::host> A =
+  coo_t<index_t, type_t, memory_space_t::host> A_coo =
       mtx.load(parameters.filename);
-  coo_t<index_t, type_t> A_device(A);
 
-  vector_t<type_t> B(A.cols);
-  vector_t<type_t> Z(A.rows);
+  std::vector<char> A_r = {'M', 'K'};
+  thrust::host_vector<char> A_ranks(A_r.begin(), A_r.end());
+  tensor_t<index_t, type_t, memory_space_t::host> A("A", A_coo, A_ranks);
 
-  generate::random::uniform_distribution(B.begin(), B.begin(), 1, 10);
+  vector_t<type_t, memory_space_t::host> B_vec(A_coo.cols);
+  generate::random::uniform_distribution(B_vec.begin(), B_vec.end(), 1, 10);
+  tensor_t<index_t, type_t, memory_space_t::host> B("B", B_vec, 'K');
 
-  Partitioner<index_t, type_t, quarks_t> partitioner(A);
+  vector_t<type_t> Z_vec(A_coo.rows);
+  tensor_t<index_t, type_t, memory_space_t::host> Z("Z", Z_vec, 'M');
+
+  A.print();
+  B.print();
+  Z.print();
+
+  /*Partitioner<index_t, type_t, quarks_t> partitioner(A);
   partitioner.partition_atoms_coordinate_space(2, 2);
   partitioner.partition_tiles_coordinate_space(1, 1);
-  //partitioner.partition_atoms_position_space(2, 2);
-  //partitioner.partition_tiles_position_space(1, 1);
   partitioner.prepare_gpu();
 
   using setup_t =
@@ -95,5 +103,5 @@ int main(int argc, char **argv) {
             << A.cols << "," << A.nnzs << "," << timer.milliseconds()
             << std::endl;
 
-  tracker.generate_output("thread_mapped_edge");
+  tracker.generate_output("thread_mapped_edge");*/
 }
