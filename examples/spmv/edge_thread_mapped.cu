@@ -4,14 +4,13 @@
 
 #include "helpers.hxx"
 #include <iostream>
-#include <loops/container/formats.hxx>
+#include <loops/container/layout_edge.hxx>
 #include <loops/container/tensor.hxx>
 #include <loops/container/vector.hxx>
 #include <loops/memory.hxx>
-#include <loops/schedule_edge.hxx>
-#include <loops/util/device.hxx>
+#include <loops/schedule.hxx>
 #include <loops/util/launch.hxx>
-#include <loops/util/partitioner_edge.hxx>
+#include <loops/util/device.hxx>
 #include <loops/util/tracker.hxx>
 
 using namespace loops;
@@ -68,6 +67,7 @@ int main(int argc, char **argv) {
   partitioner.partition_tiles_coordinate_space(1, 1);
   partitioner.prepare_gpu();
 
+  // FIX THIS, use the regular scheduler
   using setup_t =
       schedule_edge::setup<schedule_edge::algorithms_t::thread_mapped, 1, 1,
                            WorkTile<quarks_t>>;

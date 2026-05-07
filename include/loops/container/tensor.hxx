@@ -121,8 +121,6 @@ struct tensor_t {
     
     indices.resize(vec.size());
     thrust::sequence(indices.begin(), indices.end(), 0);
-
-    //thrust::copy(vec.begin(), vec.end(), values.begin());
   }
 
   /**
