@@ -35,7 +35,7 @@ __global__ void thread_mapped_edge(setup_t config, const index_t *row_indices,
   }
 }*/
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   using index_t = int;
   using offset_t = int;
   using type_t = float;

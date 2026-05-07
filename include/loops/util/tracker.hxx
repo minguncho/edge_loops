@@ -8,15 +8,13 @@
 namespace loops {
 
 /**
- * @brief Trackers Class. 
+ * @brief Trackers Class.
  * Tracks which GPU global thread has worked on which nonzero entry.
  */
 class Tracker {
  public:
-
   __host__ Tracker(std::size_t nnzs, std::size_t num_threads)
-    : nnzs(nnzs), num_threads(num_threads) { 
-
+      : nnzs(nnzs), num_threads(num_threads) {
     nz_tid.resize(nnzs);
   };
 
@@ -35,7 +33,8 @@ class Tracker {
     std::string filename = "output_ " + alg_name + "_track_report.txt";
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
-      std::cerr << "Error: Could not open file " << filename << " for writing." << std::endl;
+      std::cerr << "Error: Could not open file " << filename << " for writing."
+                << std::endl;
       return;
     }
 
@@ -61,4 +60,4 @@ class Tracker {
   vector_t<std::size_t> nz_tid;
 };
 
-} // namespace loops
+}  // namespace loops
