@@ -1,9 +1,9 @@
 /**
- * @file 
- * @author 
- * @brief 
- * @version 
- * @date 
+ * @file
+ * @author
+ * @brief
+ * @version
+ * @date
  *
  * @copyright Copyright (c) 2022
  *
@@ -21,7 +21,7 @@ namespace schedule_edge {
  *
  */
 enum algorithms_t {
-  thread_mapped,        /// < Thread mapped scheduling algorithm.
+  thread_mapped,  /// < Thread mapped scheduling algorithm.
 };
 
 template <algorithms_t scheme, typename tiles_t, typename tile_size_t>

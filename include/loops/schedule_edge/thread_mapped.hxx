@@ -45,15 +45,11 @@ class tile_traits<algorithms_t::thread_mapped, tiles_type, tile_size_type> {
  * @tparam tiles_type Type of the tiles.
  * @tparam tile_size_type Type of the tile size.
  */
-template <typename tiles_type,
-          typename tile_size_type>
-class setup<algorithms_t::thread_mapped,
-            1,
-            1,
-            tiles_type,
-            tile_size_type> : public tile_traits<algorithms_t::thread_mapped,
-                                                 tiles_type,
-                                                 tile_size_type> {
+template <typename tiles_type, typename tile_size_type>
+class setup<algorithms_t::thread_mapped, 1, 1, tiles_type, tile_size_type>
+    : public tile_traits<algorithms_t::thread_mapped,
+                         tiles_type,
+                         tile_size_type> {
  public:
   using tiles_t = tiles_type;          /// Tile Type
   using tiles_iterator_t = tiles_t*;   /// Tile Iterator Type
@@ -74,8 +70,7 @@ class setup<algorithms_t::thread_mapped,
    * @param tiles Tiles iterator.
    * @param num_tiles Number of tiles.
    */
-  __host__ __device__ setup(tiles_iterator_t tiles,
-                            tile_size_t num_tiles)
+  __host__ __device__ setup(tiles_iterator_t tiles, tile_size_t num_tiles)
       : tile_traits_t(num_tiles, tiles) {}
 
   /**
@@ -95,17 +90,20 @@ class setup<algorithms_t::thread_mapped,
   }
 
   /**
-   * @brief Creates a range of atoms (object) to process within a given tile index.
+   * @brief Creates a range of atoms (object) to process within a given tile
+   * index.
    *
    * @param tile_idx Tile Index for which to create the atom range for.
    * @return Range of atoms to process.
    */
   __device__ auto atoms(const tile_size_t tile_idx) {
-    return range(tile_traits_t::begin()[tile_idx].begin(), tile_traits_t::begin()[tile_idx].end());
+    return range(tile_traits_t::begin()[tile_idx].begin(),
+                 tile_traits_t::begin()[tile_idx].end());
   }
 
   /**
-   * @brief Creates a range of quarks (nz indices) to process within a given atom object.
+   * @brief Creates a range of quarks (nz indices) to process within a given
+   * atom object.
    *
    * @param atom Atom object for which to create the quarks range for.
    * @return Range of quarks to process.
@@ -113,7 +111,6 @@ class setup<algorithms_t::thread_mapped,
   __device__ auto quarks(auto atom) {
     return range(atom->begin(), atom->end());
   }
-
 };
 
 }  // namespace schedule_edge
