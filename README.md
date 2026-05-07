@@ -1,6 +1,6 @@
 # 🐧 `loops`: Expressing Parallel Irregular Computations
 
-[![ubuntu-20.04](https://github.com/gunrock/loops/actions/workflows/ubuntu-20.04.yml/badge.svg)](https://github.com/gunrock/loops/actions/workflows/ubuntu-20.04.yml) [![ubuntu-22.04](https://github.com/gunrock/loops/actions/workflows/ubuntu-22.04.yml/badge.svg)](https://github.com/gunrock/loops/actions/workflows/ubuntu-22.04.yml) [![windows-2019](https://github.com/gunrock/loops/actions/workflows/windows-2019.yml/badge.svg)](https://github.com/gunrock/loops/actions/workflows/windows-2019.yml) [![windows-2022](https://github.com/gunrock/loops/actions/workflows/windows-2022.yml/badge.svg)](https://github.com/gunrock/loops/actions/workflows/windows-2022.yml) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7465053.svg)](https://doi.org/10.5281/zenodo.7465053)
+[![build](https://github.com/gunrock/loops/actions/workflows/build.yml/badge.svg)](https://github.com/gunrock/loops/actions/workflows/build.yml) [![clang-format](https://github.com/gunrock/loops/actions/workflows/clang-format.yml/badge.svg)](https://github.com/gunrock/loops/actions/workflows/clang-format.yml) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7465053.svg)](https://doi.org/10.5281/zenodo.7465053)
 
 We propose an open-source GPU load-balancing framework for applications that exhibit irregular parallelism. The set of applications and algorithms we consider are fundamental to computing tasks ranging from sparse machine learning, large numerical simulations, and on through to graph analytics. The underlying data and data structures that drive these applications present access patterns that naturally don't map well to the GPU's architecture that is designed with dense and regular patterns in mind. 
 
@@ -10,100 +10,64 @@ With our open-source framework, we hope to not only improve programmers' product
 
 ## Requirements
 
-- **OS:** Ubuntu 24.04, Windows
-- **Hardware:** NVIDIA GPU (Turing or newer)
-- **Software:** CUDA 11.7 or above and cmake 3.20.1 or above.
-- **CUDA Architecture:** SM 70 or above (see [GPUs supported](https://en.wikipedia.org/wiki/CUDA#GPUs_supported)), this is specified using cmake's command: `-DCMAKE_CUDA_ARCHITECTURES=70`. Alternatively, set the CUDA architecture version in the `CMakeLists.txt` file directly: [CMakeLists.txt#72](https://github.com/gunrock/loops/blob/main/CMakeLists.txt#L72).
+- **OS:** Linux (Ubuntu 22.04 / 24.04 tested) or Windows.
+- **Hardware:** NVIDIA GPU with compute capability ≥ 7.0 (Volta or newer).
+- **Software:** CUDA Toolkit ≥ 11.7 and CMake ≥ 3.24.
+- **CUDA architecture:** Auto-detected by default (`CMAKE_CUDA_ARCHITECTURES=native`). Override at configure time, e.g. `-DCMAKE_CUDA_ARCHITECTURES=90` for an H100-only build, or `"70;80;90"` for a fat binary.
 
-## Getting Started
+`loops` is a header-only library. Thrust, CUB and libcu++ ship with the CUDA Toolkit and are picked up automatically — no separate fetch step is required. Only `cxxopts` (CLI parsing) is fetched as an external dependency.
 
-Before building `loops` make sure you have CUDA Toolkit and cmake installed on your system, and exported in `PATH` of your system. Other external dependencies such as `NVIDIA/thrust`, `NVIDIA/cub`, etc. are automatically fetched using cmake.
+## Quick Start
 
 ```bash
 git clone https://github.com/gunrock/loops.git
 cd loops
-mkdir build && cd build
-cmake -DCMAKE_CUDA_ARCHITECTURES=75 .. # Turing = 75, ...
-make -j$(nproc)
-bin/loops.spmv.merge_path -m ../datasets/chesapeake/chesapeake.mtx
+
+# Auto-detect the GPU(s) on this host (recommended default).
+cmake --preset release-native
+cmake --build --preset release-native -j
+
+# Sanity check on the bundled chesapeake matrix.
+./build/release-native/bin/loops.spmv.merge_path \
+    -m datasets/chesapeake/chesapeake.mtx --validate
 ```
 
-### Building Specific Algorithms
+Other configure presets (`release-h100`, `release-a100`, `release-multi`, `debug-native`, `release-with-tests`, `ci-multi-arch`), CMake-presets-free fallback, individual example targets, and Docker setup are all covered in [docs/build.md](docs/build.md).
 
-```bash
-make loops.spmv.<algorithm>
-```
+## Format-Generic Schedules
 
-Replaced the `<algorithm>` with one of the following algorithm names to build a specific SpMV algorithm instead of all of them:
+The four scheduling algorithms (`thread_mapped`, `group_mapped`, `work_oriented`, `merge_path_flat`) talk to the workload through a small **layout view** contract rather than directly poking at CSR offset arrays. Any struct that exposes the contract — `num_tiles()`, `num_atoms()`, `tile_begin(t)`, `tile_end(t)`, `tile_size(t)`, `tile_end_iter()` — can drive any of the schedules without modification.
 
-- `original`
-- `thread_mapped`
-- `group_mapped`
-- `work_oriented`
-- `merge_path`
+In-tree layouts:
 
-An example of the above: `make loops.spmv.merge_path`.
+| Layout | Tile is a... | Atom is a... | Backing container | Example |
+| --- | --- | --- | --- | --- |
+| `layout::csr<tile_id_t, atom_id_t>` | row | nonzero | `csr_t` | `spmv.thread_mapped`, `spmv.merge_path`, ... |
+| `layout::csc<tile_id_t, atom_id_t>` | column | nonzero | `csc_t` | `spmv.csc_thread_mapped` |
+| `layout::coo<tile_id_t, atom_id_t>` | nonzero | nonzero | `coo_t` | `spmv.coo_thread_mapped` |
+| `layout::ell<tile_id_t, atom_id_t>` | row | bucketed nonzero (uniform pitch) | `ell_t` | `spmv.ell_thread_mapped`, `spmv.ell_merge_path` |
+| `layout::bcsr<tile_id_t, atom_id_t>` | block-row | dense `R x C` block | `bcsr_t<R, C, ...>` | `spmv.bcsr_thread_mapped` |
+| `layout::dia<tile_id_t, atom_id_t>` | row | (row, diagonal) cell | `dia_t` | `spmv.dia_thread_mapped` |
 
-## Datasets
+To plug in your own format, write a struct satisfying the contract documented in [`include/loops/container/layout.hxx`](include/loops/container/layout.hxx) and pass it as the trailing template argument to `schedule::setup<...>`. A worked example lives in [`examples/spmv/custom_layout.cu`](examples/spmv/custom_layout.cu).
 
-To download the SuiteSparse Matrix Collection[^1], simply run the following command. We recommend using a `tmux` session, because downloading the entire collection can take a significant time. Uncompress the dataset by running the following command in the dataset's directory `find . -name '*.tar.gz' -execdir tar -xzvf '{}' \;
-` The total downloaded size of the dataset is nontrivial: uncompressed + compressed = 887GB.
+### Tile partitioners
 
-```bash
-wget --recursive --no-parent --force-directories -l inf -X RB,mat \ 
---accept "*.tar.gz" "https://suitesparse-collection-website.herokuapp.com/"
-```
+A *partitioner* is a layout adaptor that re-bins atoms into a different tile grouping while still satisfying the same contract — so the schedules continue to drive it unchanged. In-tree:
 
-- `--recursive` recursively download
-- `--no-parent` prevent wget from starting to fetch links in the parent of the website
-- `--l inf` keep downloading for an infinite level
-- `-X RB,mat` ignore subdirectories RB and mat, since I am only downloading matrix market MM, you can choose to download any of the others or remove this entirely to download all formats
-- `--accept` accept the following extension only
-- `--force-directories` create a hierarchy of directories, even if one would not have been created otherwise
+- `loops::layout::flat_uniform_occupancy<K, base_layout_t>` — flatten the base layout's atoms and chunk them into tiles of `K` atoms each (last tile may be smaller). Tiles can cross the base layout's natural boundaries (e.g., CSR rows), so kernels that need per-atom output addressing should atomic-add via `partitioner.base().tile_of(atom)`.
 
-[^1]: Timothy A. Davis and Yifan Hu. 2011. The University of Florida Sparse Matrix Collection. ACM Transactions on Mathematical Software 38, 1, Article 1 (December 2011), 25 pages. DOI: https://doi.org/10.1145/2049662.2049663
+A worked SpMV example using `flat_uniform_occupancy<8, csr>` lives in [`examples/spmv/flat_partitioned.cu`](examples/spmv/flat_partitioned.cu); it shares the standard `thread_mapped` schedule with no schedule-side changes.
 
-## Experimentation
+## Documentation
 
-If CUDA and cmake are already setup, follow the [Getting Started](#getting-started) instructions. Or, you may prefer to set up the entire project using docker, and for that we have provided a docker file and instructions on how to use it in [/docker](https://github.com/gunrock/loops/tree/main/docker) directory.
+Long-form documentation lives in [`docs/`](docs/):
 
-### Sanity Check
-
-Run the following command in the cmake's `build` folder:
-
-```bash
-bin/loops.spmv.merge_path -m ../datasets/chesapeake/chesapeake.mtx \
- --validate -v
-```
-
-You should approximately see the following output:
-
-```bash
-~/loops/build$ bin/loops.spmv.merge_path \
- -m ../datasets/chesapeake/chesapeake.mtx --validate -v
-Elapsed (ms):   0.063328
-Matrix:         chesapeake.mtx
-Dimensions:     39 x 39 (340)
-Errors:         0
-```
-
-## Reproducing Results
-
-> Find pre-generated results in [plots/](https://github.com/gunrock/loops/blob/main/plots/) directory along with `performance_evaluation.ipynb` notebook to recreate the plots (labeled figures) found in the paper.
-
-1. In the run script, update the `DATASET_DIR` to point to the path of all the downloaded datasets (set to the path of the directory containing `MM` directory, and inside the `MM` it has subdirectories with `.mtx` files): [scripts/run.sh](https://github.com/gunrock/loops/blob/main/scripts/run.sh). Additionally, you may change the path to `DATASET_FILES_NAME` containing the list of all the datasets (default points to [datasets/suitesparse.txt](https://github.com/gunrock/loops/blob/main/datasets/suitesparse.txt)).
-2. Fire up the complete run using `run.sh` found in `scripts` directory, `cd scripts && ./run.sh`, note one complete run can take up to 3 days (goes over the entire suitesparse matrix collection dataset four times with four different algorithms, the main bottleneck is loading files from disk.)
-3. **Warning!** Some runs on the matrices are expected to fail as they are not in proper MatrixMarket Format although labeled as `.mtx`. These matrices and the ones that do not fit on the GPU will result in runtime exceptions or `offset_t` type overflow and can be safely ignored.
-4. To run *N* number of datasets simply adjust the stop condition here (default set to `10`): [scripts/run.sh#L22](https://github.com/gunrock/loops/blob/main/scripts/run.sh#L22), or remove this if-condition entirely to run on all available `.mtx` files: [scripts/run.sh#L22-L26](https://github.com/gunrock/loops/blob/main/scripts/run.sh#L22-L26).
-
-Expected output from the above runs are `csv` files in the same directory as the `run.sh`, these can replace the existing `csv` files within `plots/data`, and a [python jupyter notebook](https://jupyter.org/install) can be fired up to evaluate the results. Python notebook includes instructions on generating plots. See sample output of one of the `csv` files below:
-
-```csv
-kernel,dataset,rows,cols,nnzs,elapsed
-merge-path,144,144649,144649,2148786,0.0720215
-merge-path,08blocks,300,300,592,0.0170898
-merge-path,1138_bus,1138,1138,4054,0.0200195
-```
+- [Building](docs/build.md) — full CMake-presets table, CUDA-architecture overrides, optional dependencies, and Docker.
+- [Datasets](docs/datasets.md) — fetching the SuiteSparse Matrix Collection.
+- [Experimentation](docs/experimentation.md) — running the bundled examples and the sanity check.
+- [Reproducing Results](docs/reproducing-results.md) — re-running the paper's full experiment sweep and regenerating the plots.
+- [Abstraction](docs/abstraction.md), [Background](docs/background.md), and [Load-Balancing API](docs/loadbalancing_api.md) — design notes on the underlying model.
 
 ## How to Cite Loops
 Thank you for citing our work.
