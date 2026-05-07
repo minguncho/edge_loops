@@ -6,9 +6,7 @@
 #include <thrust/iterator/transform_iterator.h>
 
 namespace loops {
-namespace layout {
-
-}  // namespace layout
+namespace layout {}  // namespace layout
 }  // namespace loops
 
 #include <loops/container/partitioning.hxx>
