@@ -4,7 +4,6 @@ set(LOOPS_SPMV_SOURCES
   group_mapped.cu
   work_oriented.cu
   merge_path.cu
-  edge_thread_mapped.cu
   ell_thread_mapped.cu
   ell_merge_path.cu
   custom_layout.cu
