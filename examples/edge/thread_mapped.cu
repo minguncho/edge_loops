@@ -61,7 +61,6 @@ int main(int argc, char** argv) {
   A.print();
   B.print();
   Z.print();
-  
 
   /*Partitioner<index_t, type_t, quarks_t> partitioner(A);
   partitioner.partition_atoms_coordinate_space(2, 2);
