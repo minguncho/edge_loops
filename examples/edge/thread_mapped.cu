@@ -44,19 +44,19 @@ int main(int argc, char** argv) {
   parameters_t parameters(argc, argv);
 
   matrix_market_t<index_t, offset_t, type_t> mtx;
-  coo_t<index_t, type_t, memory_space_t::host> A_coo =
+  coo_t<index_t, type_t> A_coo =
       mtx.load(parameters.filename);
 
   std::vector<char> A_r = {'M', 'K'};
   thrust::host_vector<char> A_ranks(A_r.begin(), A_r.end());
-  tensor_t<index_t, type_t, memory_space_t::host> A("A", A_coo, A_ranks);
+  tensor_t<index_t, type_t, matrix_coords<index_t>, memory_space_t::host> A("A", A_coo, A_ranks);
 
-  vector_t<type_t, memory_space_t::host> B_vec(A_coo.cols);
+  vector_t<type_t> B_vec(A_coo.cols);
   generate::random::uniform_distribution(B_vec.begin(), B_vec.end(), 1, 10);
-  tensor_t<index_t, type_t, memory_space_t::host> B("B", B_vec, 'K');
+  tensor_t<index_t, type_t, vector_coords<index_t>, memory_space_t::host> B("B", B_vec, 'K');
 
   vector_t<type_t> Z_vec(A_coo.rows);
-  tensor_t<index_t, type_t, memory_space_t::host> Z("Z", Z_vec, 'M');
+  tensor_t<index_t, type_t, vector_coords<index_t>, memory_space_t::host> Z("Z", Z_vec, 'M');
 
   A.print();
   B.print();
