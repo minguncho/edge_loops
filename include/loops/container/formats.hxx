@@ -35,7 +35,10 @@ template <typename index_t,
           memory_space_t space>
 struct csc_t;
 
-template <typename index_t, typename value_t, typename coord_t, memory_space_t space>
+template <typename index_t,
+          typename value_t,
+          typename coord_t,
+          memory_space_t space>
 struct tensor_t;
 
 template <typename index_t, typename value_t, memory_space_t space>

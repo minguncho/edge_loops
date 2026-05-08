@@ -12,8 +12,8 @@ using namespace memory;
 /**
  * @brief Sample coordinate container for matrix (2-D tensor)
  *
- */  
-template <typename index_t> 
+ */
+template <typename index_t>
 struct matrix_coords {
   index_t r0;
   index_t r1;
@@ -27,8 +27,8 @@ struct matrix_coords {
 /**
  * @brief Sample coordinate container for vector (1-D tensor)
  *
- */  
-template <typename index_t> 
+ */
+template <typename index_t>
 struct vector_coords {
   index_t r0;
 
@@ -104,20 +104,19 @@ struct tensor_t {
            const coo_t<index_t, value_t, rhs_space>& coo,
            vector_t<char, memory_space_t::host>& r)
       : name(name), ranks(r), nnzs(coo.nnzs), values(coo.values) {
-
     std::vector<std::size_t> h_dims = {coo.rows, coo.cols};
-    dims = vector_t<std::size_t, memory_space_t::host> (h_dims.begin(),
-                                                        h_dims.end());
+    dims = vector_t<std::size_t, memory_space_t::host>(h_dims.begin(),
+                                                       h_dims.end());
 
     // Copy indices from COO
-    coo_t<index_t, value_t, memory_space_t::host> h_coo(coo); 
+    coo_t<index_t, value_t, memory_space_t::host> h_coo(coo);
     vector_t<coord_t, memory_space_t::host> h_indices(nnzs);
     for (std::size_t nz = 0; nz < nnzs; nz++) {
       h_indices[nz].r0 = h_coo.row_indices[nz];
       h_indices[nz].r1 = h_coo.col_indices[nz];
     }
     indices = vector_t<coord_t, memory_space_t::host>(h_indices.begin(),
-                                                     h_indices.end());
+                                                      h_indices.end());
   }
 
   /**
@@ -128,14 +127,13 @@ struct tensor_t {
   template <typename vec_t>
   tensor_t(std::string name, const vec_t& vec, char r)
       : name(name), nnzs(vec.size()), values(vec) {
-    
     std::vector<char> h_ranks = {r};
-    ranks = vector_t<char, memory_space_t::host>(h_ranks.begin(),
-                                                 h_ranks.end());
-    
+    ranks =
+        vector_t<char, memory_space_t::host>(h_ranks.begin(), h_ranks.end());
+
     std::vector<std::size_t> h_dims = {vec.size()};
-    dims = vector_t<std::size_t, memory_space_t::host> (h_dims.begin(),
-                                                        h_dims.end());
+    dims = vector_t<std::size_t, memory_space_t::host>(h_dims.begin(),
+                                                       h_dims.end());
 
     vector_t<coord_t, memory_space_t::host> h_indices(nnzs);
     for (std::size_t nz = 0; nz < nnzs; nz++) {
@@ -143,7 +141,6 @@ struct tensor_t {
     }
     indices = vector_t<coord_t, memory_space_t::host>(h_indices.begin(),
                                                       h_indices.end());
-
   }
 
   /**
@@ -171,7 +168,8 @@ struct tensor_t {
     std::cout << "  Coordinates: ";
     for (std::size_t val_idx = 0; val_idx < values.size(); val_idx++) {
       std::cout << indices[val_idx];
-      if (val_idx != values.size() - 1) std::cout << ", ";
+      if (val_idx != values.size() - 1)
+        std::cout << ", ";
     }
     std::cout << std::endl;
     std::cout << "  Values: [";
