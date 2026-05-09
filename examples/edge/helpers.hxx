@@ -19,7 +19,7 @@
 #include <iostream>
 
 struct parameters_t {
-  std::string filename;
+  std::vector<std::string> filenames;
   bool validate;
   bool verbose;
   cxxopts::Options options;
@@ -31,12 +31,13 @@ struct parameters_t {
    * @param argv Command line arguments.
    */
   parameters_t(int argc, char** argv)
-      : options(argv[0], "Sparse Matrix-Vector Multiplication") {
+      : options(argv[0], "Edge Expression in Loops") {
     // Add command line options
-    options.add_options()("h,help", "Print help")                   // help
-        ("m,market", "Matrix file", cxxopts::value<std::string>())  // mtx
-        ("validate", "CPU validation")                              // validate
-        ("v,verbose", "Verbose output");                            // verbose
+    options.add_options()("h,help", "Print help")                                // help
+        ("m,market", "Matrix file(s) (can be specified multiple times)", 
+          cxxopts::value<std::vector<std::string>>())                            // mtx(s)
+        ("validate", "CPU validation")                                           // validate
+        ("v,verbose", "Verbose output");                                         // verbose
 
     // Parse command line arguments
     auto result = options.parse(argc, argv);
@@ -46,15 +47,20 @@ struct parameters_t {
       std::exit(0);
     }
 
-    if (result.count("market") == 1) {
-      filename = result["market"].as<std::string>();
-      if (loops::is_market(filename)) {
-      } else {
-        std::cout << options.help({""}) << std::endl;
-        std::exit(0);
+    if (result.count("market") > 0) {
+      auto files = result["market"].as<std::vector<std::string>>();
+
+      for (const auto& file : files) {
+        if (loops::is_market(file)) {
+          filenames.push_back(file);
+        } else {
+          std::cerr << "Error: File '" << file << "' is not a valid market file." << std::endl;
+          std::exit(0);
+        }
       }
-    } else {
-      std::cout << options.help({""}) << std::endl;
+    }
+    if (filenames.empty()) {
+      std::cerr << "No valid matrix market files provided." << std::endl;
       std::exit(0);
     }
 
@@ -72,6 +78,7 @@ struct parameters_t {
   }
 };
 
+// TODO: Need a general validation
 namespace cpu {
 
 using namespace loops;
@@ -87,7 +94,7 @@ using namespace loops::memory;
  * @param x device input vector.
  * @return loops::vector_t<type_t, memory_space_t::host> device output vector.
  */
-template <typename index_t, typename offset_t, typename type_t>
+/*template <typename index_t, typename offset_t, typename type_t>
 loops::vector_t<type_t, memory_space_t::host> reference(
     loops::csr_t<index_t, offset_t, type_t, memory_space_t::device>& csr,
     loops::vector_t<type_t, memory_space_t::device>& x) {
@@ -105,7 +112,7 @@ loops::vector_t<type_t, memory_space_t::host> reference(
   }
 
   return y_h;
-}
+}*/
 
 /**
  * @brief Validation for SpMV.
@@ -118,7 +125,7 @@ loops::vector_t<type_t, memory_space_t::host> reference(
  * @param x Input vector.
  * @param y Output vector.
  */
-template <typename index_t, typename offset_t, typename type_t>
+/*template <typename index_t, typename offset_t, typename type_t>
 void validate(parameters_t& parameters,
               csr_t<index_t, offset_t, type_t>& csr,
               vector_t<type_t>& x,
@@ -136,6 +143,6 @@ void validate(parameters_t& parameters,
   std::cout << "Dimensions:\t" << csr.rows << " x " << csr.cols << " ("
             << csr.nnzs << ")" << std::endl;
   std::cout << "Errors:\t\t" << errors << std::endl;
-}
+}*/
 
 }  // namespace cpu

@@ -4,6 +4,7 @@
 
 #include "helpers.hxx"
 #include <iostream>
+#include <loops/container/edge_expr.hxx>
 #include <loops/container/layout_edge.hxx>
 #include <loops/container/tensor.hxx>
 #include <loops/container/vector.hxx>
@@ -38,31 +39,51 @@ __global__ void thread_mapped_edge(setup_t config, const index_t *row_indices,
 int main(int argc, char** argv) {
   using index_t = int;
   using offset_t = int;
-  using type_t = float;
+  using value_t = float;
   using quarks_t = std::size_t;
 
   parameters_t parameters(argc, argv);
 
-  matrix_market_t<index_t, offset_t, type_t> mtx;
-  coo_t<index_t, type_t> A_coo = mtx.load(parameters.filename);
+  // Check filename requirements
+  if (parameters.filenames.size() != 1) {
+    std::cout << "Invalid number of Matrix files, Correct number: 1" << std::endl;
+    std::exit(0);
+  }
 
-  std::vector<char> A_r = {'M', 'K'};
-  thrust::host_vector<char> A_ranks(A_r.begin(), A_r.end());
-  tensor_t<index_t, type_t, matrix_coords<index_t>, memory_space_t::host> A(
+  matrix_market_t<index_t, offset_t, value_t> mtx;
+  coo_t<index_t, value_t> A_coo = mtx.load(parameters.filenames[0]);
+
+  // Define dimensions
+  std::size_t M = A_coo.rows;
+  std::size_t K = A_coo.cols;
+
+  thrust::device_vector<char> A_ranks = {'M', 'K'};
+  tensor_t<index_t, value_t, coords<index_t, 2>> A(
       "A", A_coo, A_ranks);
 
-  vector_t<type_t> B_vec(A_coo.cols);
+  vector_t<value_t> B_vec(K);
   generate::random::uniform_distribution(B_vec.begin(), B_vec.end(), 1, 10);
-  tensor_t<index_t, type_t, vector_coords<index_t>, memory_space_t::host> B(
+  tensor_t<index_t, value_t, coords<index_t, 1>> B(
       "B", B_vec, 'K');
 
-  vector_t<type_t> Z_vec(A_coo.rows);
-  tensor_t<index_t, type_t, vector_coords<index_t>, memory_space_t::host> Z(
+  vector_t<value_t> Z_vec(M);
+  tensor_t<index_t, value_t, coords<index_t, 1>> Z(
       "Z", Z_vec, 'M');
 
   A.print();
   B.print();
   Z.print();
+
+  thrust::device_vector<char> expr_ranks = {'M', 'K'};
+  thrust::device_vector<std::size_t> expr_dims = {M, K};
+  edge_expr_t<index_t, 
+              value_t, 
+              coords<index_t, 2>, 
+              coords<index_t, 1>, 
+              coords<index_t, 1>,
+              coords<index_t, 2>> edge_expr(A, B, Z, expr_ranks, expr_dims);
+  edge_expr.expand_iteration_points();
+  edge_expr.partition_coordinate_space({2, 2});
 
   /*Partitioner<index_t, type_t, quarks_t> partitioner(A);
   partitioner.partition_atoms_coordinate_space(2, 2);

@@ -1,5 +1,7 @@
 set(LOOPS_EDGE_SOURCES
-  thread_mapped.cu
+  spmv_thread_mapped.cu
+  spmm_thread_mapped.cu
+  spgemm_thread_mapped.cu
 )
 
 foreach(SOURCE IN LISTS LOOPS_EDGE_SOURCES)
