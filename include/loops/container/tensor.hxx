@@ -19,7 +19,8 @@ struct coords {
   index_t r[N];
   index_t& operator[](std::size_t i) { return r[i]; }
   static constexpr std::size_t get_N() { return N; }
-  friend std::ostream& operator<<(std::ostream& os, const coords& c) { // only works on host side
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const coords& c) {  // only works on host side
     os << "(";
     for (std::size_t i = 0; i < N; ++i) {
       os << c.r[i];
@@ -98,8 +99,9 @@ struct tensor_t {
            const coo_t<index_t, value_t, rhs_space>& coo,
            vector_t<char, space>& r)
       : name(name), ranks(r), nnzs(coo.nnzs), values(coo.values) {
-    error::throw_if_exception((coord_t::get_N() != 2),
-      "tensor_t(): Construction with COO, coord_t's N is not 2!");
+    error::throw_if_exception(
+        (coord_t::get_N() != 2),
+        "tensor_t(): Construction with COO, coord_t's N is not 2!");
     std::vector<std::size_t> h_dims = {coo.rows, coo.cols};
     dims = vector_t<std::size_t, memory_space_t::host>(h_dims.begin(),
                                                        h_dims.end());
@@ -123,8 +125,9 @@ struct tensor_t {
   template <typename vec_t>
   tensor_t(std::string name, const vec_t& vec, char r)
       : name(name), nnzs(vec.size()), values(vec) {
-    error::throw_if_exception((coord_t::get_N() != 1),
-      "tensor_t(): Construction with vector, coord_t's N is not 1!");
+    error::throw_if_exception(
+        (coord_t::get_N() != 1),
+        "tensor_t(): Construction with vector, coord_t's N is not 1!");
     std::vector<char> h_ranks = {r};
     ranks =
         vector_t<char, memory_space_t::host>(h_ranks.begin(), h_ranks.end());
@@ -147,12 +150,13 @@ struct tensor_t {
    * @param mat matrix_t<value_t, auto>
    */
   template <auto rhs_space>
-  tensor_t(std::string name, 
-           const matrix_t<value_t, rhs_space>& mat, 
+  tensor_t(std::string name,
+           const matrix_t<value_t, rhs_space>& mat,
            vector_t<char, space>& r)
       : name(name), ranks(r), nnzs(mat.rows * mat.cols), values(mat.m_data) {
-    error::throw_if_exception((coord_t::get_N() != 2),
-      "tensor_t(): Construction with matrix, coord_t's N is not 2!");
+    error::throw_if_exception(
+        (coord_t::get_N() != 2),
+        "tensor_t(): Construction with matrix, coord_t's N is not 2!");
 
     std::vector<std::size_t> h_dims = {mat.rows, mat.cols};
     dims = vector_t<std::size_t, memory_space_t::host>(h_dims.begin(),
@@ -167,7 +171,7 @@ struct tensor_t {
       }
     }
     indices = vector_t<coord_t, memory_space_t::host>(h_indices.begin(),
-                                                      h_indices.end());                                          
+                                                      h_indices.end());
   }
 
   /**
@@ -182,12 +186,12 @@ struct tensor_t {
       }
     }
 
-#ifdef __CUDA_ARCH__ // Device side error handling
+#ifdef __CUDA_ARCH__  // Device side error handling
     printf("get_rank_idx(): rank '%c' not found!\n", rank);
     return 0;
-#else // Host side error handling
-    throw error::exception_t(std::string("get_rank_idx(): rank '") 
-      + rank + "' not found!\n");
+#else  // Host side error handling
+    throw error::exception_t(std::string("get_rank_idx(): rank '") + rank +
+                             "' not found!\n");
 #endif
   }
 
@@ -210,9 +214,8 @@ struct tensor_t {
    */
   vector_t<coord_t, memory_space_t::host> find_shared_coords(char shared_rank,
                                                              value_t val) {
-
     std::size_t rank_idx = get_rank_idx(shared_rank);
-                                                                  
+
     std::vector<coord_t> shared_indices;
     vector_t<coord_t, memory_space_t::host> h_indices = indices;
 
@@ -228,7 +231,7 @@ struct tensor_t {
   /**
    * @brief Print out tensor information
    * @note To be used on the host side
-   * 
+   *
    */
   void print() {
     std::cout << "Tensor " << name << std::endl;

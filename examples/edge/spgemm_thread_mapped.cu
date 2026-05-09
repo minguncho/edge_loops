@@ -46,7 +46,8 @@ int main(int argc, char** argv) {
 
   // Check filename requirements
   if (parameters.filenames.size() != 2) {
-    std::cout << "Invalid number of Matrix files, Correct number: 2" << std::endl;
+    std::cout << "Invalid number of Matrix files, Correct number: 2"
+              << std::endl;
     std::exit(0);
   }
 
@@ -56,28 +57,26 @@ int main(int argc, char** argv) {
 
   // Check dimension requirement
   if (A_coo.cols != B_coo.rows) {
-    std::cout << "Invalid dimension, K must be equal! "
-              << A_coo.cols << " != " << B_coo.rows << std::endl;
+    std::cout << "Invalid dimension, K must be equal! " << A_coo.cols
+              << " != " << B_coo.rows << std::endl;
     std::exit(0);
   }
 
   // Define dimensions
   std::size_t M = A_coo.rows;
   std::size_t K = A_coo.cols;
-  std::size_t N = B_coo.cols;;
+  std::size_t N = B_coo.cols;
+  ;
 
   thrust::device_vector<char> A_ranks = {'M', 'K'};
-  tensor_t<index_t, value_t, coords<index_t, 2>> A(
-      "A", A_coo, A_ranks);
+  tensor_t<index_t, value_t, coords<index_t, 2>> A("A", A_coo, A_ranks);
 
   thrust::device_vector<char> B_ranks = {'K', 'N'};
-  tensor_t<index_t, value_t, coords<index_t, 2>> B(
-      "B", B_coo, B_ranks);
+  tensor_t<index_t, value_t, coords<index_t, 2>> B("B", B_coo, B_ranks);
 
   thrust::device_vector<char> Z_ranks = {'M', 'N'};
   matrix_t<value_t> Z_mat(M, N);
-  tensor_t<index_t, value_t, coords<index_t, 2>> Z(
-      "Z", Z_mat, Z_ranks);
+  tensor_t<index_t, value_t, coords<index_t, 2>> Z("Z", Z_mat, Z_ranks);
 
   A.print();
   B.print();
@@ -85,12 +84,9 @@ int main(int argc, char** argv) {
 
   thrust::device_vector<char> expr_ranks = {'M', 'K', 'N'};
   thrust::device_vector<std::size_t> expr_dims = {M, K, N};
-  edge_expr_t<index_t, 
-              value_t, 
-              coords<index_t, 2>, 
-              coords<index_t, 2>, 
-              coords<index_t, 2>,
-              coords<index_t, 3>> edge_expr(A, B, Z, expr_ranks, expr_dims);
+  edge_expr_t<index_t, value_t, coords<index_t, 2>, coords<index_t, 2>,
+              coords<index_t, 2>, coords<index_t, 3>>
+      edge_expr(A, B, Z, expr_ranks, expr_dims);
   edge_expr.expand_iteration_points();
   edge_expr.partition_coordinate_space({2, 2, 2});
 }

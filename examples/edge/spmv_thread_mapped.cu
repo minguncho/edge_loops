@@ -46,7 +46,8 @@ int main(int argc, char** argv) {
 
   // Check filename requirements
   if (parameters.filenames.size() != 1) {
-    std::cout << "Invalid number of Matrix files, Correct number: 1" << std::endl;
+    std::cout << "Invalid number of Matrix files, Correct number: 1"
+              << std::endl;
     std::exit(0);
   }
 
@@ -58,17 +59,14 @@ int main(int argc, char** argv) {
   std::size_t K = A_coo.cols;
 
   thrust::device_vector<char> A_ranks = {'M', 'K'};
-  tensor_t<index_t, value_t, coords<index_t, 2>> A(
-      "A", A_coo, A_ranks);
+  tensor_t<index_t, value_t, coords<index_t, 2>> A("A", A_coo, A_ranks);
 
   vector_t<value_t> B_vec(K);
   generate::random::uniform_distribution(B_vec.begin(), B_vec.end(), 1, 10);
-  tensor_t<index_t, value_t, coords<index_t, 1>> B(
-      "B", B_vec, 'K');
+  tensor_t<index_t, value_t, coords<index_t, 1>> B("B", B_vec, 'K');
 
   vector_t<value_t> Z_vec(M);
-  tensor_t<index_t, value_t, coords<index_t, 1>> Z(
-      "Z", Z_vec, 'M');
+  tensor_t<index_t, value_t, coords<index_t, 1>> Z("Z", Z_vec, 'M');
 
   A.print();
   B.print();
@@ -76,12 +74,9 @@ int main(int argc, char** argv) {
 
   thrust::device_vector<char> expr_ranks = {'M', 'K'};
   thrust::device_vector<std::size_t> expr_dims = {M, K};
-  edge_expr_t<index_t, 
-              value_t, 
-              coords<index_t, 2>, 
-              coords<index_t, 1>, 
-              coords<index_t, 1>,
-              coords<index_t, 2>> edge_expr(A, B, Z, expr_ranks, expr_dims);
+  edge_expr_t<index_t, value_t, coords<index_t, 2>, coords<index_t, 1>,
+              coords<index_t, 1>, coords<index_t, 2>>
+      edge_expr(A, B, Z, expr_ranks, expr_dims);
   edge_expr.expand_iteration_points();
   edge_expr.partition_coordinate_space({2, 2});
 

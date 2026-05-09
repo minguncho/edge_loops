@@ -33,11 +33,11 @@ struct parameters_t {
   parameters_t(int argc, char** argv)
       : options(argv[0], "Edge Expression in Loops") {
     // Add command line options
-    options.add_options()("h,help", "Print help")                                // help
-        ("m,market", "Matrix file(s) (can be specified multiple times)", 
-          cxxopts::value<std::vector<std::string>>())                            // mtx(s)
-        ("validate", "CPU validation")                                           // validate
-        ("v,verbose", "Verbose output");                                         // verbose
+    options.add_options()("h,help", "Print help")  // help
+        ("m,market", "Matrix file(s) (can be specified multiple times)",
+         cxxopts::value<std::vector<std::string>>())  // mtx(s)
+        ("validate", "CPU validation")                // validate
+        ("v,verbose", "Verbose output");              // verbose
 
     // Parse command line arguments
     auto result = options.parse(argc, argv);
@@ -54,7 +54,8 @@ struct parameters_t {
         if (loops::is_market(file)) {
           filenames.push_back(file);
         } else {
-          std::cerr << "Error: File '" << file << "' is not a valid market file." << std::endl;
+          std::cerr << "Error: File '" << file
+                    << "' is not a valid market file." << std::endl;
           std::exit(0);
         }
       }
