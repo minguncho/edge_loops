@@ -1,10 +1,11 @@
 /**
- * Generated Loops code (WIP)
+ * Generated Loops code for SpGEMM.
+ * To be used as a reference, this is
+ * what the generated code should look like.
  */
-
 #include "helpers.hxx"
 #include <iostream>
-#include <loops/container/edge_expr.hxx>
+#include <loops/container/edge.hxx>
 #include <loops/container/layout_edge.hxx>
 #include <loops/container/tensor.hxx>
 #include <loops/container/matrix.cuh>
@@ -16,31 +17,60 @@
 
 using namespace loops;
 
-/*template <typename setup_t, typename index_t, typename type_t>
-__global__ void thread_mapped_edge(setup_t config, const index_t *row_indices,
-                                   const index_t *col_indices,
-                                   const type_t *values, const type_t *B,
-                                   type_t *Z, size_t *nz_tid) {
+template <typename setup_t, 
+          typename index_t,
+          typename value_t,
+          typename expr_coord_t,
+          typename A_coord_t,
+          typename B_coord_t,
+          typename Z_coord_t>
+__global__ void __edge_thread_mapped(setup_t config, 
+                                     expr_coord_t* expr_coords,
+                                     A_coord_t* A_coords,
+                                     B_coord_t* B_coords,
+                                     Z_coord_t* Z_coords,
+                                     value_t* A_values,
+                                     value_t* B_values,
+                                     value_t* Z_values,
+                                     std::size_t A_nnzs,
+                                     std::size_t B_nnzs,
+                                     std::size_t Z_nnzs) {
   for (auto tile_idx : config.tiles()) {
     for (auto atom : config.atoms(tile_idx)) {
-      if (atom->get_num_quarks() == 0) {
-        continue;
+      index_t m = expr_coords[atom][0];
+      index_t k = expr_coords[atom][1];
+      index_t n = expr_coords[atom][2];
+
+      value_t A_val = 0;
+      for (std::size_t nz = 0; nz < A_nnzs; nz++) {
+        if (A_coords[nz] == A_coord_t{m, k}) {
+          A_val = A_values[nz];
+          break;
+        }
       }
 
-      for (auto quark : config.quarks(atom)) {
-        atomicAdd(&(Z[row_indices[*quark]]),
-                  values[*quark] * B[col_indices[*quark]]);
-        nz_tid[*quark] = (blockIdx.x * blockDim.x) + threadIdx.x;
+      value_t B_val = 0;
+      for (std::size_t nz = 0; nz < B_nnzs; nz++) {
+        if (B_coords[nz] == B_coord_t{k, n}) {
+          B_val = B_values[nz];
+          break;
+        }
+      }
+
+      for (std::size_t nz = 0; nz < Z_nnzs; nz++) {
+        if (Z_coords[nz] == Z_coord_t{m, n}) {
+          atomicAdd(&Z_values[nz], A_val * B_val);
+          break;
+        }
       }
     }
   }
-}*/
+}
 
 int main(int argc, char** argv) {
   using index_t = int;
   using offset_t = int;
   using value_t = float;
-  using quarks_t = std::size_t;
 
   parameters_t parameters(argc, argv);
 
@@ -51,9 +81,10 @@ int main(int argc, char** argv) {
     std::exit(0);
   }
 
-  matrix_market_t<index_t, offset_t, value_t> mtx;
-  coo_t<index_t, value_t> A_coo = mtx.load(parameters.filenames[0]);
-  coo_t<index_t, value_t> B_coo = mtx.load(parameters.filenames[1]);
+  matrix_market_t<index_t, offset_t, value_t> mtx0;
+  matrix_market_t<index_t, offset_t, value_t> mtx1;
+  coo_t<index_t, value_t> A_coo = mtx0.load(parameters.filenames[0]);
+  coo_t<index_t, value_t> B_coo = mtx1.load(parameters.filenames[1]);
 
   // Check dimension requirement
   if (A_coo.cols != B_coo.rows) {
@@ -66,27 +97,115 @@ int main(int argc, char** argv) {
   std::size_t M = A_coo.rows;
   std::size_t K = A_coo.cols;
   std::size_t N = B_coo.cols;
-  ;
 
+  using A_coord_t = coords<index_t, 2>;
+  using B_coord_t = coords<index_t, 2>;
+  using Z_coord_t = coords<index_t, 2>;
+  using expr_coord_t = coords<index_t, 3>;
+  
   thrust::device_vector<char> A_ranks = {'M', 'K'};
-  tensor_t<index_t, value_t, coords<index_t, 2>> A("A", A_coo, A_ranks);
+  tensor_t<index_t, value_t, A_coord_t> A("A", A_coo, A_ranks);
 
   thrust::device_vector<char> B_ranks = {'K', 'N'};
-  tensor_t<index_t, value_t, coords<index_t, 2>> B("B", B_coo, B_ranks);
+  tensor_t<index_t, value_t, B_coord_t> B("B", B_coo, B_ranks);
 
   thrust::device_vector<char> Z_ranks = {'M', 'N'};
   matrix_t<value_t> Z_mat(M, N);
-  tensor_t<index_t, value_t, coords<index_t, 2>> Z("Z", Z_mat, Z_ranks);
-
-  A.print();
-  B.print();
-  Z.print();
+  tensor_t<index_t, value_t, Z_coord_t> Z("Z", Z_mat, Z_ranks);
 
   thrust::device_vector<char> expr_ranks = {'M', 'K', 'N'};
   thrust::device_vector<std::size_t> expr_dims = {M, K, N};
-  edge_expr_t<index_t, value_t, coords<index_t, 2>, coords<index_t, 2>,
-              coords<index_t, 2>, coords<index_t, 3>>
-      edge_expr(A, B, Z, expr_ranks, expr_dims);
+  
+  using edge_expr_t = edge_t<index_t, value_t, A_coord_t, B_coord_t,
+              Z_coord_t, expr_coord_t>;
+
+  edge_expr_t edge_expr(A, B, Z, expr_ranks, expr_dims);
   edge_expr.expand_iteration_points();
   edge_expr.partition_coordinate_space({2, 2, 2});
+
+  using tile_id_t = std::size_t;
+  using atom_id_t = std::size_t;
+  using edge_layout_t = layout::edge<tile_id_t, atom_id_t>;
+
+  using setup_t =
+      schedule::setup<schedule::algorithms_t::thread_mapped, 1, 1, tile_id_t,
+                      atom_id_t, std::size_t, std::size_t, edge_layout_t>;
+  
+  edge_layout_t lay(edge_expr.tile_offsets.data().get(),
+                    static_cast<tile_id_t>(edge_expr.tile_offsets.size() - 1),
+                    static_cast<atom_id_t>(edge_expr.coords.size()));
+  setup_t config(lay);
+
+  constexpr std::size_t block_size = 128;
+  std::size_t grid_size =
+      math::ceil_div(edge_expr.tile_offsets.size() - 1, block_size);
+  cudaStream_t stream = 0;
+
+  util::timer_t timer;
+  timer.start();
+
+  launch::non_cooperative(stream, __edge_thread_mapped<setup_t, index_t, value_t, expr_coord_t, A_coord_t, B_coord_t, Z_coord_t>,
+                          grid_size, block_size, config, edge_expr.coords.data().get(), 
+                          A.coords.data().get(), B.coords.data().get(), Z.coords.data().get(),
+                          A.values.data().get(), B.values.data().get(), Z.values.data().get(),
+                          A.nnzs, B.nnzs, Z.nnzs);
+  cudaStreamSynchronize(stream);
+  timer.stop();
+
+  if (parameters.validate) {
+    vector_t<expr_coord_t, memory_space_t::host> h_coords = edge_expr.coords;
+    thrust::host_vector<char> h_Z_ranks = {'M', 'N'};
+    tensor_t<index_t, value_t, A_coord_t, memory_space_t::host> h_A = A;
+    tensor_t<index_t, value_t, B_coord_t, memory_space_t::host> h_B = B;
+    tensor_t<index_t, value_t, Z_coord_t, memory_space_t::host> h_Z("h_Z", Z_mat, h_Z_ranks);
+    for (auto& coord : h_coords) {
+      index_t m = coord[0];
+      index_t k = coord[1];
+      index_t n = coord[2];
+
+      value_t A_val = 0;
+      for (std::size_t nz = 0; nz < A.nnzs; nz++) {
+        if (h_A.coords[nz] == A_coord_t{m, k}) {
+          A_val = h_A.values[nz];
+          break;
+        }
+      }
+
+      value_t B_val = 0;
+      for (std::size_t nz = 0; nz < B.nnzs; nz++) {
+        if (h_B.coords[nz] == B_coord_t{k, n}) {
+          B_val = h_B.values[nz];
+          break;
+        }
+      }
+
+      for (std::size_t nz = 0; nz < Z.nnzs; nz++) {
+        if (h_Z.coords[nz] == Z_coord_t{m, n}) {
+          h_Z.values[nz] += A_val * B_val;
+          break;
+        }
+      }
+    }
+    if (h_Z.values.size() != Z.values.size()) {
+      std::cout << "Number of elems mismatch! " 
+                << h_Z.values.size() << " != " << Z.values.size() << std::endl;
+    }
+    else {
+      std::size_t errors = util::equal(
+          Z.values.data().get(), h_Z.values.data(), h_Z.values.size(),
+          [](const value_t a, const value_t b) { return std::abs(a - b) > 1e-2; },
+          parameters.verbose);
+
+      std::cout << "Errors:\t\t" << errors << std::endl;
+    }
+  }
+
+  std::cout << "edge_thread_mapped," << mtx0.dataset 
+            << ".mtx," << mtx1.dataset << ".mtx," 
+            << "M=" << M << ",K=" << K << ","
+            << timer.milliseconds() << std::endl;
+
+  // TODO: Implement tracker for thread ID and tile
+  //tracker.generate_output("edge_thread_mapped");
+
 }
