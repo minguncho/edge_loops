@@ -46,8 +46,9 @@ struct parameters_t {
         ("m,market", "Matrix file(s) (can be specified multiple times)",
          cxxopts::value<std::vector<std::string>>())  // mtx(s)
         ("validate", "CPU validation")                // validate
-        ("v,verbose", "Verbose output")              // verbose
-        ("s,seed", "Seed value for random value generation", cxxopts::value<unsigned int>()); // seed
+        ("v,verbose", "Verbose output")               // verbose
+        ("s,seed", "Seed value for random value generation",
+         cxxopts::value<unsigned int>());  // seed
 
     // Parse command line arguments
     auto result = options.parse(argc, argv);

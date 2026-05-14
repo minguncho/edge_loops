@@ -18,14 +18,14 @@
 
 using namespace loops;
 
-template <typename setup_t, 
+template <typename setup_t,
           typename index_t,
           typename value_t,
           typename expr_coord_t,
           typename A_coord_t,
           typename B_coord_t,
           typename Z_coord_t>
-__global__ void __edge_thread_mapped(setup_t config, 
+__global__ void __edge_thread_mapped(setup_t config,
                                      expr_coord_t* expr_coords,
                                      A_coord_t* A_coords,
                                      B_coord_t* B_coords,
@@ -102,10 +102,9 @@ int main(int argc, char** argv) {
   matrix_t<value_t> B_mat(K, N);
   if (parameters.using_seed) {
     std::cout << "Using seed value: " << parameters.seed_value << std::endl;
-    generate::random::uniform_distribution(B_mat.m_data.begin(),
-                                           B_mat.m_data.end(), 1, 10, parameters.seed_value);
-  }
-  else {
+    generate::random::uniform_distribution(
+        B_mat.m_data.begin(), B_mat.m_data.end(), 1, 10, parameters.seed_value);
+  } else {
     generate::random::uniform_distribution(B_mat.m_data.begin(),
                                            B_mat.m_data.end(), 1, 10);
   }
@@ -118,8 +117,8 @@ int main(int argc, char** argv) {
   thrust::device_vector<char> expr_ranks = {'M', 'K', 'N'};
   thrust::device_vector<std::size_t> expr_dims = {M, K, N};
 
-  using edge_expr_t = edge_t<index_t, value_t, A_coord_t, B_coord_t,
-              Z_coord_t, expr_coord_t>;
+  using edge_expr_t =
+      edge_t<index_t, value_t, A_coord_t, B_coord_t, Z_coord_t, expr_coord_t>;
 
   edge_expr_t edge_expr(A, B, Z, expr_ranks, expr_dims);
   edge_expr.expand_iteration_points();
@@ -132,7 +131,7 @@ int main(int argc, char** argv) {
   using setup_t =
       schedule::setup<schedule::algorithms_t::thread_mapped, 1, 1, tile_id_t,
                       atom_id_t, std::size_t, std::size_t, edge_layout_t>;
-  
+
   edge_layout_t lay(edge_expr.tile_offsets.data().get(),
                     static_cast<tile_id_t>(edge_expr.tile_offsets.size() - 1),
                     static_cast<atom_id_t>(edge_expr.coords.size()));
@@ -146,11 +145,14 @@ int main(int argc, char** argv) {
   util::timer_t timer;
   timer.start();
 
-  launch::non_cooperative(stream, __edge_thread_mapped<setup_t, index_t, value_t, expr_coord_t, A_coord_t, B_coord_t, Z_coord_t>,
-                          grid_size, block_size, config, edge_expr.coords.data().get(), 
-                          A.coords.data().get(), B.coords.data().get(), Z.coords.data().get(),
-                          A.values.data().get(), B.values.data().get(), Z.values.data().get(),
-                          A.nnzs, B.nnzs, Z.nnzs);
+  launch::non_cooperative(
+      stream,
+      __edge_thread_mapped<setup_t, index_t, value_t, expr_coord_t, A_coord_t,
+                           B_coord_t, Z_coord_t>,
+      grid_size, block_size, config, edge_expr.coords.data().get(),
+      A.coords.data().get(), B.coords.data().get(), Z.coords.data().get(),
+      A.values.data().get(), B.values.data().get(), Z.values.data().get(),
+      A.nnzs, B.nnzs, Z.nnzs);
   cudaStreamSynchronize(stream);
   timer.stop();
 
@@ -159,7 +161,8 @@ int main(int argc, char** argv) {
     thrust::host_vector<char> h_Z_ranks = {'M', 'N'};
     tensor_t<index_t, value_t, A_coord_t, memory_space_t::host> h_A = A;
     tensor_t<index_t, value_t, B_coord_t, memory_space_t::host> h_B = B;
-    tensor_t<index_t, value_t, Z_coord_t, memory_space_t::host> h_Z("h_Z", Z_mat, h_Z_ranks);
+    tensor_t<index_t, value_t, Z_coord_t, memory_space_t::host> h_Z(
+        "h_Z", Z_mat, h_Z_ranks);
     for (auto& coord : h_coords) {
       index_t m = coord[0];
       index_t k = coord[1];
@@ -189,23 +192,23 @@ int main(int argc, char** argv) {
       }
     }
     if (h_Z.values.size() != Z.values.size()) {
-      std::cout << "Number of elems mismatch! " 
-                << h_Z.values.size() << " != " << Z.values.size() << std::endl;
-    }
-    else {
+      std::cout << "Number of elems mismatch! " << h_Z.values.size()
+                << " != " << Z.values.size() << std::endl;
+    } else {
       std::size_t errors = util::equal(
           Z.values.data().get(), h_Z.values.data(), h_Z.values.size(),
-          [](const value_t a, const value_t b) { return std::abs(a - b) > 1e-2; },
+          [](const value_t a, const value_t b) {
+            return std::abs(a - b) > 1e-2;
+          },
           parameters.verbose);
 
       std::cout << "Errors:\t\t" << errors << std::endl;
     }
   }
 
-  std::cout << "edge_thread_mapped," << mtx.dataset 
-            << ".mtx,M=" << M << ",K=" << K << ","
-            << timer.milliseconds() << std::endl;
+  std::cout << "edge_thread_mapped," << mtx.dataset << ".mtx,M=" << M
+            << ",K=" << K << "," << timer.milliseconds() << std::endl;
 
   // TODO: Implement tracker for thread ID and tile
-  //tracker.generate_output("edge_thread_mapped");
+  // tracker.generate_output("edge_thread_mapped");
 }

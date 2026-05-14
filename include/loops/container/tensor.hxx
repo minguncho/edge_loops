@@ -23,7 +23,7 @@ using namespace memory;
 
 /**
  * @brief Coordinate container for N-dimension tensor
- * 
+ *
  * @tparam index_t Type of index.
  * @tparam N       Value of N.
  */
@@ -40,8 +40,7 @@ struct coords {
     }
     return true;
   }
-  __host__ friend std::ostream& operator<<(std::ostream& os,
-                                           const coords& c) {
+  __host__ friend std::ostream& operator<<(std::ostream& os, const coords& c) {
     os << "(";
     for (std::size_t i = 0; i < N; ++i) {
       os << c.r[i];
@@ -56,7 +55,7 @@ struct coords {
 
 /**
  * @brief Tensor container
- * 
+ *
  * @tparam index_t Type of index.
  * @tparam value_t Type of non-zero value.
  * @tparam N       Value of N.
@@ -66,13 +65,14 @@ template <typename index_t,
           typename coord_t,
           memory_space_t space = memory_space_t::device>
 struct tensor_t {
-  std::string name; /// Name of tensor.
-  vector_t<char, space> ranks; /// List of rank labels.
-  vector_t<std::size_t, space> dims; /// List of size of each dimension.
-  std::size_t nnzs; /// Number of non-zero elements.
+  std::string name;                   /// Name of tensor.
+  vector_t<char, space> ranks;        /// List of rank labels.
+  vector_t<std::size_t, space> dims;  /// List of size of each dimension.
+  std::size_t nnzs;                   /// Number of non-zero elements.
 
-  vector_t<coord_t, space> coords; /// List of coordinates of each rank to a value.
-  vector_t<value_t, space> values; /// List of values.
+  vector_t<coord_t, space>
+      coords;  /// List of coordinates of each rank to a value.
+  vector_t<value_t, space> values;  /// List of values.
 
   /**
    * @brief Construct a new tensor object with everything initialized to zero.
@@ -247,8 +247,9 @@ struct tensor_t {
    * @param shared_rank Rank that is shared between other tensor.
    * @param val         Value of coordinate of the shared rank.
    */
-  __host__ vector_t<coord_t, memory_space_t::host> find_shared_coords(char shared_rank,
-                                                                      value_t val) {
+  __host__ vector_t<coord_t, memory_space_t::host> find_shared_coords(
+      char shared_rank,
+      value_t val) {
     std::size_t rank_idx = get_rank_idx(shared_rank);
 
     std::vector<coord_t> shared_coords;

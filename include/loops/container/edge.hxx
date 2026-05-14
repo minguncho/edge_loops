@@ -5,16 +5,16 @@
  * @version
  * @date
  *
- * Edge container stores input and output tensors from the 
+ * Edge container stores input and output tensors from the
  * edge expression. Note that the current version supports
  * a single edge expression, 2 input tensors (A, B) and
- * 1 output tensor (Z). 
- * 
+ * 1 output tensor (Z).
+ *
  * Edge container is responsible for building a list of
  * iteration points by traversing through the coordinates
- * of A and B. It also supports performing a partition 
- * in coordinate space. 
- * 
+ * of A and B. It also supports performing a partition
+ * in coordinate space.
+ *
  * @copyright
  *
  */
@@ -37,7 +37,7 @@ using namespace memory;
  * @tparam A_coord_t    Type of coordinate container of tensor A.
  * @tparam B_coord_t    Type of coordinate container of tensor B.
  * @tparam Z_coord_t    Type of coordinate container of tensor Z.
- * @tparam expr_coord_t Type of coordinate container of iteration 
+ * @tparam expr_coord_t Type of coordinate container of iteration
  *                      space of edge expression.
  * @tparam space        Memory space (host/device) for storage.
  */
@@ -53,35 +53,31 @@ struct edge_t {
   tensor_t<index_t, value_t, B_coord_t, space> B;
   tensor_t<index_t, value_t, Z_coord_t, space> Z;
 
-  vector_t<char, space> ranks; /// List of ranks of the entire expression
-  vector_t<std::size_t, space> dims; /// List of dimensions corresponding to each rank
+  vector_t<char, space> ranks;  /// List of ranks of the entire expression
+  vector_t<std::size_t, space>
+      dims;  /// List of dimensions corresponding to each rank
 
-  vector_t<expr_coord_t, space> coords; /// List of coordinates of each rank in the iteration space
-  vector_t<std::size_t, space> tile_offsets; /// Tile offsets collected from partition_coordinate_space()
+  vector_t<expr_coord_t, space>
+      coords;  /// List of coordinates of each rank in the iteration space
+  vector_t<std::size_t, space> tile_offsets;  /// Tile offsets collected from
+                                              /// partition_coordinate_space()
 
-  edge_t() 
-      : A(),
-        B(), 
-        Z(),
-        ranks(),
-        dims(),
-        coords(),
-        tile_offsets() {}
+  edge_t() : A(), B(), Z(), ranks(), dims(), coords(), tile_offsets() {}
 
   /**
    * @brief Construct a new edge_t from another edge_t on host/device.
    *
-   * @param rhs tensor_t<index_t, value_t, A_coord_t, B_coord_t, 
+   * @param rhs tensor_t<index_t, value_t, A_coord_t, B_coord_t,
    *                     Z_coord_t, expr_coord_t, rhs_space>
    */
   template <auto rhs_space>
-  edge_t(const edge_t<index_t, 
-               value_t, 
-               A_coord_t, 
-               B_coord_t, 
-               Z_coord_t, 
-               expr_coord_t,
-               rhs_space>& rhs) 
+  edge_t(const edge_t<index_t,
+                      value_t,
+                      A_coord_t,
+                      B_coord_t,
+                      Z_coord_t,
+                      expr_coord_t,
+                      rhs_space>& rhs)
       : A(rhs.A),
         B(rhs.B),
         Z(rhs.Z),
@@ -93,20 +89,19 @@ struct edge_t {
   /**
    * @brief Constructor of edge_t
    * @note Current version only supports 2 input tensors
-   * 
+   *
    * @param A Input tensor A
    * @param B Input tensor B
    * @param Z Output tensor Z
    * @param ranks List of ranks of the entire expression
    * @param dims List of dimensions corresponding to each rank
-   */ 
+   */
   edge_t(tensor_t<index_t, value_t, A_coord_t, space>& A,
-              tensor_t<index_t, value_t, B_coord_t, space>& B,
-              tensor_t<index_t, value_t, Z_coord_t, space>& Z,
-              vector_t<char, space>& ranks,
-              vector_t<std::size_t, space>& dims)
-      : A(A), B(B), Z(Z), ranks(ranks), dims(dims), 
-        coords(), tile_offsets() {
+         tensor_t<index_t, value_t, B_coord_t, space>& B,
+         tensor_t<index_t, value_t, Z_coord_t, space>& Z,
+         vector_t<char, space>& ranks,
+         vector_t<std::size_t, space>& dims)
+      : A(A), B(B), Z(Z), ranks(ranks), dims(dims), coords(), tile_offsets() {
     error::throw_if_exception((ranks.size() != dims.size()),
                               "edge_expr_t(): ranks.size() != dims.size()!\n");
   }
@@ -240,20 +235,17 @@ struct edge_t {
     h_tile_offsets.push_back(0);
 
     for (auto& tile : tiles) {
-      h_flattened_coords.insert(
-        h_flattened_coords.end(), 
-        tile.second.begin(), 
-        tile.second.end()
-      );
+      h_flattened_coords.insert(h_flattened_coords.end(), tile.second.begin(),
+                                tile.second.end());
       h_tile_offsets.push_back(h_flattened_coords.size());
     }
 
-    coords = vector_t<expr_coord_t, memory_space_t::host>(h_flattened_coords.begin(),
-                                                          h_flattened_coords.end());       
-    tile_offsets = vector_t<std::size_t, memory_space_t::host>(h_tile_offsets.begin(),
-                                                               h_tile_offsets.end());
+    coords = vector_t<expr_coord_t, memory_space_t::host>(
+        h_flattened_coords.begin(), h_flattened_coords.end());
+    tile_offsets = vector_t<std::size_t, memory_space_t::host>(
+        h_tile_offsets.begin(), h_tile_offsets.end());
   }
 
-}; // struct edge_expr
+};  // struct edge_expr
 
 }  // namespace loops
