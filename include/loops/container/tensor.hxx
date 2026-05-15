@@ -183,7 +183,10 @@ struct tensor_t {
   tensor_t(std::string name,
            const matrix_t<value_t, rhs_space>& mat,
            vector_t<char, space>& ranks)
-      : name(name), ranks(ranks), nnzs(mat.rows * mat.cols), values(mat.m_data) {
+      : name(name),
+        ranks(ranks),
+        nnzs(mat.rows * mat.cols),
+        values(mat.m_data) {
     error::throw_if_exception(
         (coord_t::get_N() != 2),
         "tensor_t(): Construction with matrix, coord_t's N is not 2!");
