@@ -120,21 +120,20 @@ struct tensor_t {
   /**
    * @brief Construct a new tensor from coordinate format (COO) on the host.
    *
-   * @param name Name of tensor.
-   * @param coo  coo_t<index_t, value_t, auto>
-   * @param r    List of rank labels.
+   * @param name  Name of tensor.
+   * @param coo   coo_t<index_t, value_t, auto>
+   * @param ranks List of rank labels.
    */
   template <auto rhs_space>
   tensor_t(std::string name,
            const coo_t<index_t, value_t, rhs_space>& coo,
-           vector_t<char, space>& r)
-      : name(name), ranks(r), nnzs(coo.nnzs), values(coo.values) {
+           vector_t<char, space>& ranks)
+      : name(name), ranks(ranks), nnzs(coo.nnzs), values(coo.values) {
     error::throw_if_exception(
         (coord_t::get_N() != 2),
         "tensor_t(): Construction with COO, coord_t's N is not 2!");
     std::vector<std::size_t> h_dims = {coo.rows, coo.cols};
-    dims = vector_t<std::size_t, memory_space_t::host>(h_dims.begin(),
-                                                       h_dims.end());
+    dims = vector_t<std::size_t, space>(h_dims.begin(), h_dims.end());
 
     // Copy coords from COO
     coo_t<index_t, value_t, memory_space_t::host> h_coo(coo);
@@ -144,8 +143,7 @@ struct tensor_t {
       h_coords[nz].r[0] = h_coo.row_indices[nz];
       h_coords[nz].r[1] = h_coo.col_indices[nz];
     }
-    coords = vector_t<coord_t, memory_space_t::host>(h_coords.begin(),
-                                                     h_coords.end());
+    coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());
   }
 
   /**
@@ -153,49 +151,45 @@ struct tensor_t {
    *
    * @param name Name of tensor.
    * @param vec  vec_t<value_t, auto>
-   * @param r    Rank label.
+   * @param rank Rank label.
    */
   template <typename vec_t>
-  tensor_t(std::string name, const vec_t& vec, char r)
+  tensor_t(std::string name, const vec_t& vec, char rank)
       : name(name), nnzs(vec.size()), values(vec) {
     error::throw_if_exception(
         (coord_t::get_N() != 1),
         "tensor_t(): Construction with vector, coord_t's N is not 1!");
-    std::vector<char> h_ranks = {r};
-    ranks =
-        vector_t<char, memory_space_t::host>(h_ranks.begin(), h_ranks.end());
+    std::vector<char> h_ranks = {rank};
+    ranks = vector_t<char, space>(h_ranks.begin(), h_ranks.end());
 
     std::vector<std::size_t> h_dims = {vec.size()};
-    dims = vector_t<std::size_t, memory_space_t::host>(h_dims.begin(),
-                                                       h_dims.end());
+    dims = vector_t<std::size_t, space>(h_dims.begin(), h_dims.end());
 
     std::vector<coord_t> h_coords(nnzs);
     for (std::size_t nz = 0; nz < nnzs; nz++) {
       h_coords[nz].r[0] = nz;
     }
-    coords = vector_t<coord_t, memory_space_t::host>(h_coords.begin(),
-                                                     h_coords.end());
+    coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());
   }
 
   /**
    * @brief Construct a new tensor from a fully dense matrix on the host.
    *
-   * @param name Name of tensor.
-   * @param mat  matrix_t<value_t, auto>
-   * @param r    List of rank labels.
+   * @param name  Name of tensor.
+   * @param mat   matrix_t<value_t, auto>
+   * @param ranks List of rank labels.
    */
   template <auto rhs_space>
   tensor_t(std::string name,
            const matrix_t<value_t, rhs_space>& mat,
-           vector_t<char, space>& r)
-      : name(name), ranks(r), nnzs(mat.rows * mat.cols), values(mat.m_data) {
+           vector_t<char, space>& ranks)
+      : name(name), ranks(ranks), nnzs(mat.rows * mat.cols), values(mat.m_data) {
     error::throw_if_exception(
         (coord_t::get_N() != 2),
         "tensor_t(): Construction with matrix, coord_t's N is not 2!");
 
     std::vector<std::size_t> h_dims = {mat.rows, mat.cols};
-    dims = vector_t<std::size_t, memory_space_t::host>(h_dims.begin(),
-                                                       h_dims.end());
+    dims = vector_t<std::size_t, space>(h_dims.begin(), h_dims.end());
 
     // Copy coords from mat
     std::vector<coord_t> h_coords(nnzs);
@@ -205,8 +199,7 @@ struct tensor_t {
         h_coords[(r * mat.cols) + c].r[1] = c;
       }
     }
-    coords = vector_t<coord_t, memory_space_t::host>(h_coords.begin(),
-                                                     h_coords.end());
+    coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());
   }
 
   /**
