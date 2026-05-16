@@ -261,23 +261,23 @@ struct tensor_t {
   }
 
   /**
-   * @brief Collects all valid unique coordinate values 
-   * for a target rank, filtered by the dimensions that have 
+   * @brief Collects all valid unique coordinate values
+   * for a target rank, filtered by the dimensions that have
    * already been bound in the global expression space.
    * @note To be used on the host side
-   * 
+   *
    * @param target_local_idx   Local idx of target rank
    * @param active_filters     Stores local and global idx of
    *                           other tracking ranks
-   * @param current_expr_coord The global workspace tracking 
+   * @param current_expr_coord The global workspace tracking
    *                           currently bound coordinate values.
    */
   template <typename bound_mapping_t, typename expr_coord_t>
-  __host__ std::unordered_set<index_t> get_active_coordinates(std::size_t target_local_idx, 
-                                                              std::vector<bound_mapping_t>& active_filters,
-                                                              expr_coord_t& current_expr_coord) {
-
-    std::unordered_set<index_t> valid_values;                                                                  
+  __host__ std::unordered_set<index_t> get_active_coordinates(
+      std::size_t target_local_idx,
+      std::vector<bound_mapping_t>& active_filters,
+      expr_coord_t& current_expr_coord) {
+    std::unordered_set<index_t> valid_values;
     vector_t<coord_t, memory_space_t::host> h_coords = coords;
 
     for (auto& coord : h_coords) {
@@ -285,11 +285,12 @@ struct tensor_t {
       for (auto& filter : active_filters) {
         if (coord[filter.local_idx] != current_expr_coord[filter.global_idx]) {
           match = false;
-          break; // Mismatch found, drop this coordinate entry
+          break;  // Mismatch found, drop this coordinate entry
         }
       }
 
-      // If it matches all active filters, harvest its value at the target rank axis
+      // If it matches all active filters, harvest its value at the target rank
+      // axis
       if (match) {
         valid_values.insert(coord[target_local_idx]);
       }
@@ -311,12 +312,14 @@ struct tensor_t {
     std::cout << "Tensor " << name << std::endl;
     std::cout << "  Ranks & Dims:" << std::endl;
     for (std::size_t rank_id = 0; rank_id < h_ranks.size(); rank_id++) {
-      std::cout << "    " << h_ranks[rank_id] << ": " << h_dims[rank_id] << std::endl;
+      std::cout << "    " << h_ranks[rank_id] << ": " << h_dims[rank_id]
+                << std::endl;
     }
     std::cout << "  NNZs: " << nnzs << std::endl;
     std::cout << "  Coordinates & Values:" << std::endl;
     for (std::size_t val_idx = 0; val_idx < nnzs; val_idx++) {
-      std::cout << "    " << h_coords[val_idx] << ": " << h_values[val_idx] << std::endl;
+      std::cout << "    " << h_coords[val_idx] << ": " << h_values[val_idx]
+                << std::endl;
     }
   }
 
