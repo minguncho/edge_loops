@@ -1,5 +1,6 @@
 /**
  * Generated Loops code for SpGEMM.
+ * Partition in coordinate space.
  * To be used as a reference, this is
  * what the generated code should look like.
  */
@@ -117,9 +118,9 @@ int main(int argc, char** argv) {
   thrust::device_vector<std::size_t> expr_dims = {M, K, N};
 
   using edge_expr_t =
-      edge_t<index_t, value_t, A_coord_t, B_coord_t, Z_coord_t, expr_coord_t>;
+      edge_t<index_t, value_t, Z_coord_t, expr_coord_t, memory_space_t::device, A_coord_t, B_coord_t>;
 
-  edge_expr_t edge_expr(A, B, Z, expr_ranks, expr_dims);
+  edge_expr_t edge_expr(expr_ranks, expr_dims, Z, A, B);
   edge_expr.expand_iteration_points();
   edge_expr.partition_coordinate_space({2, 2, 2});
 
@@ -132,8 +133,8 @@ int main(int argc, char** argv) {
                       atom_id_t, std::size_t, std::size_t, edge_layout_t>;
 
   edge_layout_t lay(edge_expr.tile_offsets.data().get(),
-                    static_cast<tile_id_t>(edge_expr.tile_offsets.size() - 1),
-                    static_cast<atom_id_t>(edge_expr.coords.size()));
+                    static_cast<tile_id_t>(edge_expr.num_tiles),
+                    static_cast<atom_id_t>(edge_expr.num_atoms));
   setup_t config(lay);
 
   constexpr std::size_t block_size = 128;
