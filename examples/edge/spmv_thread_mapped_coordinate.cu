@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
       index_t k = coord[1];
 
       value_t A_val = 0;
-      for (std::size_t nz = 0; nz < A.nnzs; nz++) {
+      for (std::size_t nz = 0; nz < h_A.nnzs; nz++) {
         if (h_A.coords[nz] == A_coord_t{m, k}) {
           A_val = h_A.values[nz];
           break;
@@ -170,14 +170,14 @@ int main(int argc, char** argv) {
       }
 
       value_t B_val = 0;
-      for (std::size_t nz = 0; nz < B.nnzs; nz++) {
+      for (std::size_t nz = 0; nz < h_B.nnzs; nz++) {
         if (h_B.coords[nz] == B_coord_t{k}) {
           B_val = h_B.values[nz];
           break;
         }
       }
 
-      for (std::size_t nz = 0; nz < Z.nnzs; nz++) {
+      for (std::size_t nz = 0; nz < h_Z.nnzs; nz++) {
         if (h_Z.coords[nz] == Z_coord_t{m}) {
           h_Z.values[nz] += A_val * B_val;
           break;
