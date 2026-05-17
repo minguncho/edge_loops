@@ -23,20 +23,20 @@ template <typename setup_t,
           typename index_t,
           typename value_t,
           typename expr_coord_t,
+          typename Z_coord_t,
           typename A_coord_t,
-          typename B_coord_t,
-          typename Z_coord_t>
+          typename B_coord_t>
 __global__ void __edge_thread_mapped(setup_t config,
                                      expr_coord_t* expr_coords,
+                                     Z_coord_t* Z_coords,
                                      A_coord_t* A_coords,
                                      B_coord_t* B_coords,
-                                     Z_coord_t* Z_coords,
+                                     value_t* Z_values,
                                      value_t* A_values,
                                      value_t* B_values,
-                                     value_t* Z_values,
+                                     std::size_t Z_nnzs,
                                      std::size_t A_nnzs,
-                                     std::size_t B_nnzs,
-                                     std::size_t Z_nnzs) {
+                                     std::size_t B_nnzs) {
   for (auto tile_idx : config.tiles()) {
     for (auto atom : config.atoms(tile_idx)) {
       index_t m = expr_coords[atom][0];
@@ -113,8 +113,8 @@ int main(int argc, char** argv) {
   thrust::device_vector<char> expr_ranks = {'M', 'K'};
   thrust::device_vector<std::size_t> expr_dims = {M, K};
 
-  using edge_expr_t = edge_t<index_t, value_t, Z_coord_t, expr_coord_t,
-                             memory_space_t::device, A_coord_t, B_coord_t>;
+  using edge_expr_t = edge_t<index_t, value_t, memory_space_t::device,
+                             expr_coord_t, Z_coord_t, A_coord_t, B_coord_t>;
 
   edge_expr_t edge_expr(expr_ranks, expr_dims, Z, A, B);
   edge_expr.expand_iteration_points();
@@ -142,12 +142,12 @@ int main(int argc, char** argv) {
 
   launch::non_cooperative(
       stream,
-      __edge_thread_mapped<setup_t, index_t, value_t, expr_coord_t, A_coord_t,
-                           B_coord_t, Z_coord_t>,
+      __edge_thread_mapped<setup_t, index_t, value_t, expr_coord_t, Z_coord_t,
+                           A_coord_t, B_coord_t>,
       grid_size, block_size, config, edge_expr.coords.data().get(),
-      A.coords.data().get(), B.coords.data().get(), Z.coords.data().get(),
-      A.values.data().get(), B.values.data().get(), Z.values.data().get(),
-      A.nnzs, B.nnzs, Z.nnzs);
+      Z.coords.data().get(), A.coords.data().get(), B.coords.data().get(),
+      Z.values.data().get(), A.values.data().get(), B.values.data().get(),
+      Z.nnzs, A.nnzs, B.nnzs);
   cudaStreamSynchronize(stream);
   timer.stop();
 

@@ -35,17 +35,17 @@ using namespace memory;
  *
  * @tparam index_t       Type of index.
  * @tparam value_t       Type of non-zero value.
- * @tparam Z_coord_t     Type of coordinate container of tensor Z.
+ * @tparam space         Memory space (host/device) for storage.
  * @tparam expr_coord_t  Type of coordinate container of iteration
  *                       space of edge expression.
- * @tparam space         Memory space (host/device) for storage.
+ * @tparam Z_coord_t     Type of coordinate container of tensor Z.
  * @tparam input_coord_t Type of coordinate container of input tensors.
  */
 template <typename index_t,
           typename value_t,
-          typename Z_coord_t,
-          typename expr_coord_t,
           memory_space_t space,
+          typename expr_coord_t,
+          typename Z_coord_t,
           typename... input_coord_t>
 struct edge_t {
   vector_t<char, space> ranks;  /// List of ranks of the entire expression
@@ -113,15 +113,15 @@ struct edge_t {
   /**
    * @brief Construct a new edge_t from another edge_t on host/device.
    *
-   * @param rhs tensor_t<index_t, value_t, Z_coord_t, expr_coord_t,
-   *                     rhs_space, input_coord_t...>
+   * @param rhs edge_t<index_t, value_t, rhs_space, expr_coord_t,
+   *                     Z_coord_t, input_coord_t...>
    */
   template <auto rhs_space>
   edge_t(const edge_t<index_t,
                       value_t,
-                      Z_coord_t,
-                      expr_coord_t,
                       rhs_space,
+                      expr_coord_t,
+                      Z_coord_t,
                       input_coord_t...>& rhs)
       : ranks(rhs.ranks),
         dims(rhs.dims),
