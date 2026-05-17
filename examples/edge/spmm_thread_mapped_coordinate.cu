@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
 
   constexpr std::size_t block_size = 128;
   std::size_t grid_size =
-      math::ceil_div(edge_expr.tile_offsets.size() - 1, block_size);
+      math::ceil_div(edge_expr.num_tiles, block_size);
   cudaStream_t stream = 0;
 
   util::timer_t timer;
