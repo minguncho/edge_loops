@@ -207,8 +207,10 @@ int main(int argc, char** argv) {
   }
 
   std::cout << "edge_thread_mapped," << mtx.dataset << ".mtx,M=" << M
-            << ",K=" << K << ",N=" << N << "," << timer.milliseconds()
-            << std::endl;
+            << ",K=" << K << ",N=" << N << ",";
+  if (parameters.using_seed) 
+    std::cout << "seed=" << parameters.seed_value << ",";
+  std::cout << "time(ms)=" << timer.milliseconds() << std::endl;
 
   // TODO: Implement tracker for thread ID and tile
   // tracker.generate_output("edge_thread_mapped");
