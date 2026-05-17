@@ -113,8 +113,8 @@ int main(int argc, char** argv) {
   thrust::device_vector<char> expr_ranks = {'M', 'K'};
   thrust::device_vector<std::size_t> expr_dims = {M, K};
 
-  using edge_expr_t =
-      edge_t<index_t, value_t, Z_coord_t, expr_coord_t, memory_space_t::device, A_coord_t, B_coord_t>;
+  using edge_expr_t = edge_t<index_t, value_t, Z_coord_t, expr_coord_t,
+                             memory_space_t::device, A_coord_t, B_coord_t>;
 
   edge_expr_t edge_expr(expr_ranks, expr_dims, Z, A, B);
   edge_expr.expand_iteration_points();

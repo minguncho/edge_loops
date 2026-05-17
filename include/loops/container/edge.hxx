@@ -48,48 +48,67 @@ template <typename index_t,
           memory_space_t space,
           typename... input_coord_t>
 struct edge_t {
-
   vector_t<char, space> ranks;  /// List of ranks of the entire expression
-  vector_t<std::size_t, space> dims;  /// List of dimensions corresponding to each rank
+  vector_t<std::size_t, space>
+      dims;  /// List of dimensions corresponding to each rank
 
-  tensor_t<index_t, value_t, Z_coord_t, space> Z; /// Output Tensor Z
-  std::tuple<tensor_t<index_t, value_t, input_coord_t, space>...> input_tensors; /// Input Tensors
+  tensor_t<index_t, value_t, Z_coord_t, space> Z;  /// Output Tensor Z
+  std::tuple<tensor_t<index_t, value_t, input_coord_t, space>...>
+      input_tensors;  /// Input Tensors
 
   // Work Atoms
-  vector_t<expr_coord_t, space> coords;  /// List of coordinates of each rank in the iteration space
+  vector_t<expr_coord_t, space>
+      coords;  /// List of coordinates of each rank in the iteration space
   std::size_t num_atoms;
-  
+
   // Work Tiles
-  vector_t<std::size_t, space> tile_offsets;  /// Tile offsets collected from partitioning
+  vector_t<std::size_t, space>
+      tile_offsets;  /// Tile offsets collected from partitioning
   std::size_t num_tiles;
 
   /**
    * @brief Validate input tensors on host.
    *
-   */                                      
+   */
   void validate_input_tensors() {
-    std::tuple<tensor_t<index_t, value_t, input_coord_t, memory_space_t::host>...> h_input_tensors = input_tensors;
+    std::tuple<
+        tensor_t<index_t, value_t, input_coord_t, memory_space_t::host>...>
+        h_input_tensors = input_tensors;
     std::unordered_set<std::string> tensor_names;
 
-    std::apply([&](auto&... tensor) {
-      ([&](auto& t) {
-        if (tensor_names.find(t.name) != tensor_names.end())
-          throw error::exception_t(std::string("validate_input_tensors(): tensor name '") 
-                                   + t.name + "' already exists!\n");
-        else
-          tensor_names.insert(t.name);
-      }(tensor), ...);
-    }, h_input_tensors);
+    std::apply(
+        [&](auto&... tensor) {
+          (
+              [&](auto& t) {
+                if (tensor_names.find(t.name) != tensor_names.end())
+                  throw error::exception_t(
+                      std::string("validate_input_tensors(): tensor name '") +
+                      t.name + "' already exists!\n");
+                else
+                  tensor_names.insert(t.name);
+              }(tensor),
+              ...);
+        },
+        h_input_tensors);
 
-     error::throw_if_exception(tensor_names.empty(),
+    error::throw_if_exception(
+        tensor_names.empty(),
         "validate_input_tensors(): Empty set of tensor names!\n");
   }
 
   /**
    * @brief Default Constructor
-   * 
+   *
    */
-  edge_t() : ranks(), dims(), Z(), input_tensors(), coords(), num_atoms(0), tile_offsets(), num_tiles(0) {}
+  edge_t()
+      : ranks(),
+        dims(),
+        Z(),
+        input_tensors(),
+        coords(),
+        num_atoms(0),
+        tile_offsets(),
+        num_tiles(0) {}
 
   /**
    * @brief Construct a new edge_t from another edge_t on host/device.
@@ -111,23 +130,31 @@ struct edge_t {
         coords(rhs.coords),
         num_atoms(rhs.num_atoms),
         tile_offsets(rhs.tile_offsets),
-        num_tiles(rhs.num_tiles) { validate_input_tensors(); }
+        num_tiles(rhs.num_tiles) {
+    validate_input_tensors();
+  }
 
   /**
    * @brief Constructor of edge_t
-   * 
+   *
    * @param ranks         List of ranks of the entire expression
    * @param dims          List of dimensions corresponding to each rank
    * @param Z             Output tensor Z
    * @param input_tensors Input tensors
-   * 
+   *
    */
   edge_t(vector_t<char, space>& ranks,
          vector_t<std::size_t, space>& dims,
          tensor_t<index_t, value_t, Z_coord_t, space>& Z,
          tensor_t<index_t, value_t, input_coord_t, space>&... input_tensors)
-      : ranks(ranks), dims(dims), Z(Z), input_tensors(input_tensors...), 
-        coords(), num_atoms(0), tile_offsets(), num_tiles(0) {
+      : ranks(ranks),
+        dims(dims),
+        Z(Z),
+        input_tensors(input_tensors...),
+        coords(),
+        num_atoms(0),
+        tile_offsets(),
+        num_tiles(0) {
     error::throw_if_exception((ranks.size() != dims.size()),
                               "edge_expr_t(): ranks.size() != dims.size()!\n");
     validate_input_tensors();
@@ -155,25 +182,27 @@ struct edge_t {
   }
 
   /**
-   * @brief Collects all valid unique coordinate values 
-   * for a target rank, filtered by the dimensions that have 
+   * @brief Collects all valid unique coordinate values
+   * for a target rank, filtered by the dimensions that have
    * already been bound in the global expression space.
    * @note To be used on the host side
-   * 
+   *
    * @param tensor             Current tensor object.
    * @param target_rank        Current targeted rank.
-   * @param current_expr_coord The global workspace tracking 
+   * @param current_expr_coord The global workspace tracking
    *                           currently bound coordinate values.
    */
   template <typename cur_tensor_t>
-  __host__ std::unordered_set<index_t> get_tensor_active_coordinates(cur_tensor_t& tensor,
-                                                                     char target_rank, 
-                                                                     expr_coord_t& current_expr_coord) {
+  __host__ std::unordered_set<index_t> get_tensor_active_coordinates(
+      cur_tensor_t& tensor,
+      char target_rank,
+      expr_coord_t& current_expr_coord) {
     std::unordered_set<index_t> valid_values;
     std::size_t target_local_idx = 0;
     bool has_target_rank = false;
 
-    // Identify which of this tensor's local ranks have already been bound globally.
+    // Identify which of this tensor's local ranks have already been bound
+    // globally.
     struct bound_mapping_t {
       std::size_t local_idx;
       std::size_t global_idx;
@@ -182,30 +211,33 @@ struct edge_t {
 
     for (std::size_t i = 0; i < tensor.ranks.size(); ++i) {
       char local_rank = tensor.ranks[i];
-      
+
       if (local_rank == target_rank) {
         target_local_idx = i;
         has_target_rank = true;
         continue;
       }
 
-      // Check if this other rank has already been bound in the global expression engine.
-      // We know its rank index in the global expression space via get_expr_rank_idx.
+      // Check if this other rank has already been bound in the global
+      // expression engine. We know its rank index in the global expression
+      // space via get_expr_rank_idx.
       std::size_t global_idx = get_expr_rank_idx(local_rank);
-      
-      // Safety check: Does the backtracking engine consider this rank "already processed"?
-      // Since we process ranks sequentially (0 to N-1), if a rank's global index mapping 
-      // is less than the global index mapping of our target_rank, it means it has already been bound.
+
+      // Safety check: Does the backtracking engine consider this rank "already
+      // processed"? Since we process ranks sequentially (0 to N-1), if a rank's
+      // global index mapping is less than the global index mapping of our
+      // target_rank, it means it has already been bound.
       if (global_idx < get_expr_rank_idx(target_rank)) {
         active_filters.push_back({i, global_idx});
       }
     }
 
     if (!has_target_rank) {
-      return valid_values; 
+      return valid_values;
     }
 
-    valid_values = tensor.get_active_coordinates(target_local_idx, active_filters, current_expr_coord);
+    valid_values = tensor.get_active_coordinates(
+        target_local_idx, active_filters, current_expr_coord);
 
     return valid_values;
   }
@@ -217,26 +249,32 @@ struct edge_t {
    * collect existing iteration points.
    */
   void expand_iteration_points() {
-
-    std::tuple<tensor_t<index_t, value_t, input_coord_t, memory_space_t::host>...> h_input_tensors = input_tensors;
+    std::tuple<
+        tensor_t<index_t, value_t, input_coord_t, memory_space_t::host>...>
+        h_input_tensors = input_tensors;
     vector_t<char, memory_space_t::host> h_ranks = ranks;
 
     // Build Constraint Map
     // For every global rank, find which tensors contain it
     std::unordered_map<char, std::vector<std::string>> constraints;
     for (char rank : h_ranks) {
-      std::apply([&](auto&... tensor) {
-        ([&](auto& t) {
-          auto it = std::find(t.ranks.begin(), t.ranks.end(), rank);
-          if (it != t.ranks.end()) {
-            constraints[rank].push_back(t.name);
-          }
-        }(tensor), ...);
-      }, h_input_tensors);
+      std::apply(
+          [&](auto&... tensor) {
+            (
+                [&](auto& t) {
+                  auto it = std::find(t.ranks.begin(), t.ranks.end(), rank);
+                  if (it != t.ranks.end()) {
+                    constraints[rank].push_back(t.name);
+                  }
+                }(tensor),
+                ...);
+          },
+          h_input_tensors);
     }
 
-    // A working buffer representing the current multidimensional coordinate we are building
-    expr_coord_t current_expr_coord; 
+    // A working buffer representing the current multidimensional coordinate we
+    // are building
+    expr_coord_t current_expr_coord;
     std::vector<expr_coord_t> h_coords;
 
     // Recursive Backtracking Engine
@@ -259,13 +297,18 @@ struct edge_t {
       for (const auto& ref_name : active_tensor_names) {
         std::unordered_set<index_t> local_values;
 
-        std::apply([&](auto&... tensor) {
-          ([&](auto& t) {
-            if (ref_name == t.name) {
-              local_values = get_tensor_active_coordinates(t, current_rank, current_expr_coord);
-            }
-          }(tensor), ...);
-        }, h_input_tensors);
+        std::apply(
+            [&](auto&... tensor) {
+              (
+                  [&](auto& t) {
+                    if (ref_name == t.name) {
+                      local_values = get_tensor_active_coordinates(
+                          t, current_rank, current_expr_coord);
+                    }
+                  }(tensor),
+                  ...);
+            },
+            h_input_tensors);
 
         if (first_tensor) {
           valid_values = std::move(local_values);
@@ -274,21 +317,24 @@ struct edge_t {
           // Intersect with existing valid values
           for (auto it = valid_values.begin(); it != valid_values.end();) {
             if (local_values.find(*it) == local_values.end()) {
-              it = valid_values.erase(it); // Not present in this tensor, discard
+              it = valid_values.erase(
+                  it);  // Not present in this tensor, discard
             } else {
               ++it;
             }
           }
         }
-        if (valid_values.empty()) break; // Early termination if intersection is empty
+        if (valid_values.empty())
+          break;  // Early termination if intersection is empty
       }
 
-      // Bind each valid intersecting coordinate value and recurse to the next dimension
+      // Bind each valid intersecting coordinate value and recurse to the next
+      // dimension
       for (index_t value : valid_values) {
         std::size_t global_idx = get_expr_rank_idx(current_rank);
         current_expr_coord[global_idx] = value;
-        
-        self(self, rank_idx + 1); // Recurse to next rank
+
+        self(self, rank_idx + 1);  // Recurse to next rank
       }
     };
 
@@ -363,15 +409,14 @@ struct edge_t {
     vector_t<expr_coord_t, memory_space_t::host> h_coords = coords;
     vector_t<std::size_t, memory_space_t::host> h_tile_offsets = tile_offsets;
     std::cout << "------Input Tensors------" << std::endl;
-    std::apply([](auto&... tensor) {
-      (..., (tensor.print()));
-    }, input_tensors);
+    std::apply([](auto&... tensor) { (..., (tensor.print())); }, input_tensors);
     std::cout << "------Output Tensor------" << std::endl;
     Z.print();
     std::cout << "-----EDGE Expression------" << std::endl;
     std::cout << "Expression ranks & dims:" << std::endl;
     for (std::size_t rank_id = 0; rank_id < h_ranks.size(); rank_id++) {
-      std::cout << "  " << h_ranks[rank_id] << ": " << h_dims[rank_id] << std::endl;
+      std::cout << "  " << h_ranks[rank_id] << ": " << h_dims[rank_id]
+                << std::endl;
     }
     std::cout << "Number of work atoms: " << num_atoms << std::endl;
     std::cout << "Number of work tiles: " << num_tiles << std::endl;
