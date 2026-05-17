@@ -82,10 +82,11 @@ int main(int argc, char** argv) {
     std::exit(0);
   }
 
-  matrix_market_t<index_t, offset_t, value_t> mtx0;
-  matrix_market_t<index_t, offset_t, value_t> mtx1;
-  coo_t<index_t, value_t> A_coo = mtx0.load(parameters.filenames[0]);
-  coo_t<index_t, value_t> B_coo = mtx1.load(parameters.filenames[1]);
+  matrix_market_t<index_t, offset_t, value_t> mtx;
+  coo_t<index_t, value_t> A_coo = mtx.load(parameters.filenames[0]);
+  std::string A_name = mtx.dataset;
+  coo_t<index_t, value_t> B_coo = mtx.load(parameters.filenames[1]);
+  std::string B_name = mtx.dataset;
 
   // Check dimension requirement
   if (A_coo.cols != B_coo.rows) {
@@ -205,9 +206,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::cout << "edge_thread_mapped," << mtx0.dataset << ".mtx," << mtx1.dataset
-            << ".mtx,"
-            << "M=" << M << ",K=" << K << "," << timer.milliseconds()
+  std::cout << "edge_thread_mapped," << A_name << ".mtx," << B_name
+            << ".mtx,M=" << M << ",K=" << K << "," << timer.milliseconds()
             << std::endl;
 
   // TODO: Implement tracker for thread ID and tile
