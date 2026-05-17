@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
 
   std::cout << "edge_thread_mapped," << mtx.dataset << ".mtx,M=" << M
             << ",K=" << K << ",";
-  if (parameters.using_seed) 
+  if (parameters.using_seed)
     std::cout << "seed=" << parameters.seed_value << ",";
   std::cout << "time(ms)=" << timer.milliseconds() << std::endl;
 

@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
   }
 
   std::cout << "edge_thread_mapped," << A_name << ".mtx," << B_name
-            << ".mtx,M=" << M << ",K=" << K << ",N=" << N 
+            << ".mtx,M=" << M << ",K=" << K << ",N=" << N
             << ",time(ms)=" << timer.milliseconds() << std::endl;
 
   // TODO: Implement tracker for thread ID and tile
