@@ -2,7 +2,7 @@
  * Matrix addition with 3 tensors.
  * Testing the Edge container with
  * any number of input tensors.
- * 
+ *
  * Z[m, k] = A[m, k] + B[m, k] + C[m, k]
  */
 
@@ -143,9 +143,8 @@ int main(int argc, char** argv) {
   thrust::device_vector<std::size_t> expr_dims = {M, K};
 
   using edge_expr_t =
-      edge_t<index_t, value_t, memory_space_t::device, 
-             expr_coord_t, Z_coord_t, A_coord_t, B_coord_t,
-             C_coord_t>;
+      edge_t<index_t, value_t, memory_space_t::device, expr_coord_t, Z_coord_t,
+             A_coord_t, B_coord_t, C_coord_t>;
 
   edge_expr_t edge_expr(expr_ranks, expr_dims, Z, A, B, C);
   edge_expr.expand_union_iteration_points();
@@ -176,9 +175,10 @@ int main(int argc, char** argv) {
       __edge_thread_mapped<setup_t, index_t, value_t, expr_coord_t, Z_coord_t,
                            A_coord_t, B_coord_t, C_coord_t>,
       grid_size, block_size, config, edge_expr.coords.data().get(),
-      Z.coords.data().get(), A.coords.data().get(), B.coords.data().get(), C.coords.data().get(),
-      Z.values.data().get(), A.values.data().get(), B.values.data().get(), C.values.data().get(),
-      Z.nnzs, A.nnzs, B.nnzs, C.nnzs);
+      Z.coords.data().get(), A.coords.data().get(), B.coords.data().get(),
+      C.coords.data().get(), Z.values.data().get(), A.values.data().get(),
+      B.values.data().get(), C.values.data().get(), Z.nnzs, A.nnzs, B.nnzs,
+      C.nnzs);
   cudaStreamSynchronize(stream);
   timer.stop();
 
@@ -240,10 +240,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::cout << "edge_thread_mapped," << A_name << ".mtx," 
-            << B_name << ".mtx," << C_name << ".mtx,M=" 
-            << M << ",K=" << K << ",time(ms)=" 
-            << timer.milliseconds() << std::endl;
+  std::cout << "edge_thread_mapped," << A_name << ".mtx," << B_name << ".mtx,"
+            << C_name << ".mtx,M=" << M << ",K=" << K
+            << ",time(ms)=" << timer.milliseconds() << std::endl;
 
   // TODO: Implement tracker for thread ID and tile
   // tracker.generate_output("edge_thread_mapped");
