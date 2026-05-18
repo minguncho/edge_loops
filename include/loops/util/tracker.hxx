@@ -24,6 +24,9 @@ namespace loops {
  * @brief Tracker Container.
  * Tracks which GPU global thread has worked on which work atom.
  * 
+ * @tparam atom_id_t Index type for atoms.
+ * @tparam space     Memory space (host/device) for storage.
+ * 
  */
 template <typename atom_id_t,
           memory_space_t space = memory_space_t::device>
@@ -31,7 +34,6 @@ struct tracker_t {
 
   atom_id_t num_atoms;
   std::size_t num_threads;
-
   vector_t<int, space> coord_tid;
 
   /**
@@ -41,7 +43,10 @@ struct tracker_t {
   tracker_t() : num_atoms(0), num_threads(0) {};
 
   /**
-   * @brief
+   * @brief Construct of tracker_t
+   * 
+   * @param num_atoms   Number of work atoms.
+   * @param num_threads Total number of GPU threads.
    * 
    */
   tracker_t(atom_id_t num_atoms, std::size_t num_threads)
@@ -50,7 +55,10 @@ struct tracker_t {
   };
 
   /**
-   * @brief
+   * @brief Generate an output file
+   * 
+   * @param edge_expr Edge expression container.
+   * @param file_name Name of output file.
    * 
    */
   template <typename edge_expr_t, typename expr_coord_t>
