@@ -1,4 +1,17 @@
+/**
+ * @file tracker.hxx
+ * @author
+ * @brief
+ * @version
+ * @date
+ *
+ * @copyright
+ *
+ */
+
 #pragma once
+
+#include <loops/container/vector.hxx>
 
 #include <fstream>
 #include <vector>
@@ -8,29 +21,55 @@
 namespace loops {
 
 /**
- * @brief Trackers Class.
- * Tracks which GPU global thread has worked on which nonzero entry.
+ * @brief Tracker Container.
+ * Tracks which GPU global thread has worked on which work atom.
+ * 
  */
-class Tracker {
- public:
-  __host__ Tracker(std::size_t nnzs, std::size_t num_threads)
-      : nnzs(nnzs), num_threads(num_threads) {
-    nz_tid.resize(nnzs);
+template <typename atom_id_t,
+          memory_space_t space = memory_space_t::device>
+struct tracker_t {
+
+  atom_id_t num_atoms;
+  std::size_t num_threads;
+
+  vector_t<int, space> coord_tid;
+
+  /**
+   * @brief Default constructor 
+   * 
+   */
+  tracker_t() : num_atoms(0), num_threads(0) {};
+
+  /**
+   * @brief
+   * 
+   */
+  tracker_t(atom_id_t num_atoms, std::size_t num_threads)
+      : num_atoms(num_atoms), num_threads(num_threads) {
+    coord_tid.resize(num_atoms);
   };
 
-  __host__ void generate_output(std::string alg_name) {
-    vector_t<std::size_t, memory_space_t::host> h_nz_tid = nz_tid;
+  /**
+   * @brief
+   * 
+   */
+  template <typename edge_expr_t, typename expr_coord_t>
+  void generate_output(const edge_expr_t& edge_expr, 
+                       const std::string& file_name) {
 
-    std::vector<std::vector<std::size_t>> thread_buckets(num_threads);
+    vector_t<std::size_t, memory_space_t::host> h_coord_tid = coord_tid;
+    vector_t<expr_coord_t, memory_space_t::host> h_coords = edge_expr.coords;
 
-    // Gather nz entry processed by each tid
-    for (std::size_t nz_idx = 0; nz_idx < nnzs; nz_idx++) {
-      std::size_t tid = h_nz_tid[nz_idx];
-      thread_buckets[tid].push_back(nz_idx);
+    std::vector<std::vector<std::size_t>> thr_coords(num_threads);
+
+    // Gather coordinate processed by each tid
+    for (std::size_t coord_id = 0; coord_id < h_coords.size(); coord_id++) {
+      int tid = h_coord_tid[coord_id];
+      thr_coords[tid].push_back(coord_id);
     }
 
     // Write to an output file
-    std::string filename = "output_ " + alg_name + "_track_report.txt";
+    std::string filename = "output_" + file_name + "_track_report.txt";
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
       std::cerr << "Error: Could not open file " << filename << " for writing."
@@ -38,11 +77,13 @@ class Tracker {
       return;
     }
 
-    outfile << "Global TID | NZ entries processed\n";
+    edge_expr.print(outfile);
+    outfile << "------Tracker Report------" << std::endl;
+    outfile << "Global TID | Coordinate processed\n";
     for (std::size_t tid = 0; tid < num_threads; ++tid) {
       outfile << tid << ":";
-      for (const auto& nz_idx : thread_buckets[tid]) {
-        outfile << " " << nz_idx;
+      for (const auto& coord_idx : thr_coords[tid]) {
+        outfile << " " << h_coords[coord_idx];
       }
       outfile << "\n";
     }
@@ -50,14 +91,6 @@ class Tracker {
     outfile.close();
     std::cout << "Tracker output generated: " << filename << std::endl;
   }
-
-  __host__ vector_t<std::size_t>& get_nz_tid() { return nz_tid; }
-
- private:
-  std::size_t nnzs;
-  std::size_t num_threads;
-
-  vector_t<std::size_t> nz_tid;
 };
 
 }  // namespace loops

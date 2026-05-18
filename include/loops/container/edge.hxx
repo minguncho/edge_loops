@@ -388,6 +388,7 @@ struct edge_t {
         h_input_tensors);
 
     coords = vector_t<expr_coord_t, space>(h_coords.begin(), h_coords.end());
+    num_atoms = h_coords.size();
   }
 
   /**
@@ -447,33 +448,33 @@ struct edge_t {
    * @brief Print out Edge container information on the host side
    *
    */
-  void print() {
+  void print(std::ostream& out = std::cout) const {
     vector_t<char, memory_space_t::host> h_ranks = ranks;
     vector_t<std::size_t, memory_space_t::host> h_dims = dims;
     vector_t<expr_coord_t, memory_space_t::host> h_coords = coords;
     vector_t<std::size_t, memory_space_t::host> h_tile_offsets = tile_offsets;
-    std::cout << "------Input Tensors------" << std::endl;
-    std::apply([](auto&... tensor) { (..., (tensor.print())); }, input_tensors);
-    std::cout << "------Output Tensor------" << std::endl;
-    Z.print();
-    std::cout << "-----EDGE Expression------" << std::endl;
-    std::cout << "Expression ranks & dims:" << std::endl;
+    out << "------Input Tensors------" << std::endl;
+    std::apply([&out](auto&... tensor) { (..., (tensor.print(out))); }, input_tensors);
+    out << "------Output Tensor------" << std::endl;
+    Z.print(out);
+    out << "-----EDGE Expression------" << std::endl;
+    out << "Expression ranks & dims:" << std::endl;
     for (std::size_t rank_id = 0; rank_id < h_ranks.size(); rank_id++) {
-      std::cout << "  " << h_ranks[rank_id] << ": " << h_dims[rank_id]
+      out << "  " << h_ranks[rank_id] << ": " << h_dims[rank_id]
                 << std::endl;
     }
-    std::cout << "Number of work atoms: " << num_atoms << std::endl;
-    std::cout << "Number of work tiles: " << num_tiles << std::endl;
+    out << "Number of work atoms: " << num_atoms << std::endl;
+    out << "Number of work tiles: " << num_tiles << std::endl;
     for (std::size_t tile_id = 0; tile_id < num_tiles; tile_id++) {
       std::size_t start = h_tile_offsets[tile_id];
       std::size_t end = h_tile_offsets[tile_id + 1];
 
-      std::cout << "  Tile #" << tile_id << std::endl;
-      std::cout << "    Coordinates: ";
+      out << "  Tile #" << tile_id << std::endl;
+      out << "    Coordinates: ";
       for (; start < end; start++) {
-        std::cout << h_coords[start] << " ";
+        out << h_coords[start] << " ";
       }
-      std::cout << std::endl;
+      out << std::endl;
     }
   }
 

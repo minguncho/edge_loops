@@ -303,22 +303,22 @@ struct tensor_t {
    * @brief Print out tensor information on the host side
    *
    */
-  __host__ void print() {
+  void print(std::ostream& out = std::cout) const {
     vector_t<char, memory_space_t::host> h_ranks = ranks;
     vector_t<std::size_t, memory_space_t::host> h_dims = dims;
     vector_t<coord_t, memory_space_t::host> h_coords = coords;
     vector_t<value_t, memory_space_t::host> h_values = values;
 
-    std::cout << "Tensor " << name << std::endl;
-    std::cout << "  Ranks & Dims:" << std::endl;
+    out << "Tensor " << name << std::endl;
+    out << "  Ranks & Dims:" << std::endl;
     for (std::size_t rank_id = 0; rank_id < h_ranks.size(); rank_id++) {
-      std::cout << "    " << h_ranks[rank_id] << ": " << h_dims[rank_id]
+      out << "    " << h_ranks[rank_id] << ": " << h_dims[rank_id]
                 << std::endl;
     }
-    std::cout << "  NNZs: " << nnzs << std::endl;
-    std::cout << "  Coordinates & Values:" << std::endl;
+    out << "  NNZs: " << nnzs << std::endl;
+    out << "  Coordinates & Values:" << std::endl;
     for (std::size_t val_idx = 0; val_idx < nnzs; val_idx++) {
-      std::cout << "    " << h_coords[val_idx] << ": " << h_values[val_idx]
+      out << "    " << h_coords[val_idx] << ": " << h_values[val_idx]
                 << std::endl;
     }
   }

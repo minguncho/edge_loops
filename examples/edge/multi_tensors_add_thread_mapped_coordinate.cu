@@ -41,7 +41,8 @@ __global__ void __edge_thread_mapped(setup_t config,
                                      std::size_t Z_nnzs,
                                      std::size_t A_nnzs,
                                      std::size_t B_nnzs,
-                                     std::size_t C_nnzs) {
+                                     std::size_t C_nnzs,
+                                     int* coords_tid) {
   for (auto tile_idx : config.tiles()) {
     for (auto atom : config.atoms(tile_idx)) {
       index_t m = expr_coords[atom][0];
@@ -77,6 +78,7 @@ __global__ void __edge_thread_mapped(setup_t config,
           break;
         }
       }
+      coords_tid[atom] = (blockIdx.x * blockDim.x) + threadIdx.x;
     }
   }
 }
@@ -167,6 +169,8 @@ int main(int argc, char** argv) {
   std::size_t grid_size = math::ceil_div(edge_expr.num_tiles, block_size);
   cudaStream_t stream = 0;
 
+  tracker_t<atom_id_t> tracker(edge_expr.num_atoms, block_size * grid_size);
+
   util::timer_t timer;
   timer.start();
 
@@ -178,7 +182,7 @@ int main(int argc, char** argv) {
       Z.coords.data().get(), A.coords.data().get(), B.coords.data().get(),
       C.coords.data().get(), Z.values.data().get(), A.values.data().get(),
       B.values.data().get(), C.values.data().get(), Z.nnzs, A.nnzs, B.nnzs,
-      C.nnzs);
+      C.nnzs, tracker.coord_tid.data().get());
   cudaStreamSynchronize(stream);
   timer.stop();
 
@@ -240,10 +244,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::cout << "edge_thread_mapped," << A_name << ".mtx," << B_name << ".mtx,"
+  std::cout << "multi_tensors_add_thread_mapped_coordinate," << A_name << ".mtx," << B_name << ".mtx,"
             << C_name << ".mtx,M=" << M << ",K=" << K
             << ",time(ms)=" << timer.milliseconds() << std::endl;
 
-  // TODO: Implement tracker for thread ID and tile
-  // tracker.generate_output("edge_thread_mapped");
+  tracker.generate_output<edge_expr_t, expr_coord_t>(edge_expr, "multi_tensors_add_thread_mapped_coordinate");
 }
