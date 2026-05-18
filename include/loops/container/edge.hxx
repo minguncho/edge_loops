@@ -158,8 +158,9 @@ struct edge_t {
         num_tiles(0) {
     error::throw_if_exception((ranks.size() != dims.size()),
                               "edge_expr_t(): ranks.size() != dims.size()!\n");
-    error::throw_if_exception((ranks.size() != expr_coord_t::get_N()),
-                              "edge_expr_t(): ranks.size() != expr_coord_t::get_N()!\n");
+    error::throw_if_exception(
+        (ranks.size() != expr_coord_t::get_N()),
+        "edge_expr_t(): ranks.size() != expr_coord_t::get_N()!\n");
     validate_input_tensors();
   }
 
@@ -369,19 +370,23 @@ struct edge_t {
           (
               [&](auto& t) {
                 // Check tensor ranks == expression ranks
-                for (std::size_t rank_id = 0; rank_id < h_ranks.size(); rank_id++) {
-                  error::throw_if_exception((h_ranks[rank_id] != t.ranks[rank_id]),
-                    "expand_union_iteration_points(): Tensor rank mismatch!\n");
+                for (std::size_t rank_id = 0; rank_id < h_ranks.size();
+                     rank_id++) {
+                  error::throw_if_exception(
+                      (h_ranks[rank_id] != t.ranks[rank_id]),
+                      "expand_union_iteration_points(): Tensor rank "
+                      "mismatch!\n");
                 }
                 for (auto& coord : t.coords) {
-                  if (std::find(h_coords.begin(), h_coords.end(), coord) == h_coords.end())
+                  if (std::find(h_coords.begin(), h_coords.end(), coord) ==
+                      h_coords.end())
                     h_coords.push_back(coord);
                 }
               }(tensor),
               ...);
         },
         h_input_tensors);
-    
+
     coords = vector_t<expr_coord_t, space>(h_coords.begin(), h_coords.end());
   }
 
