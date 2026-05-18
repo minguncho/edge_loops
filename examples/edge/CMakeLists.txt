@@ -2,6 +2,8 @@ set(LOOPS_EDGE_SOURCES
   spmv_thread_mapped_coordinate.cu
   spmm_thread_mapped_coordinate.cu
   spgemm_thread_mapped_coordinate.cu
+  multi_tensors_mult_thread_mapped_coordinate.cu
+  multi_tensors_add_thread_mapped_coordinate.cu
 )
 
 foreach(SOURCE IN LISTS LOOPS_EDGE_SOURCES)
