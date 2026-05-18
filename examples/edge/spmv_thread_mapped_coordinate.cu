@@ -209,5 +209,6 @@ int main(int argc, char** argv) {
     std::cout << "seed=" << parameters.seed_value << ",";
   std::cout << "time(ms)=" << timer.milliseconds() << std::endl;
 
-  tracker.generate_output<edge_expr_t, expr_coord_t>(edge_expr, "spmv_thread_mapped_coordinate");
+  tracker.generate_output<edge_expr_t, expr_coord_t>(
+      edge_expr, "spmv_thread_mapped_coordinate");
 }

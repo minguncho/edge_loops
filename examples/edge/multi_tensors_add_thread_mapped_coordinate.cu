@@ -244,9 +244,10 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::cout << "multi_tensors_add_thread_mapped_coordinate," << A_name << ".mtx," << B_name << ".mtx,"
-            << C_name << ".mtx,M=" << M << ",K=" << K
-            << ",time(ms)=" << timer.milliseconds() << std::endl;
+  std::cout << "multi_tensors_add_thread_mapped_coordinate," << A_name
+            << ".mtx," << B_name << ".mtx," << C_name << ".mtx,M=" << M
+            << ",K=" << K << ",time(ms)=" << timer.milliseconds() << std::endl;
 
-  tracker.generate_output<edge_expr_t, expr_coord_t>(edge_expr, "multi_tensors_add_thread_mapped_coordinate");
+  tracker.generate_output<edge_expr_t, expr_coord_t>(
+      edge_expr, "multi_tensors_add_thread_mapped_coordinate");
 }

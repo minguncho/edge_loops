@@ -454,14 +454,14 @@ struct edge_t {
     vector_t<expr_coord_t, memory_space_t::host> h_coords = coords;
     vector_t<std::size_t, memory_space_t::host> h_tile_offsets = tile_offsets;
     out << "------Input Tensors------" << std::endl;
-    std::apply([&out](auto&... tensor) { (..., (tensor.print(out))); }, input_tensors);
+    std::apply([&out](auto&... tensor) { (..., (tensor.print(out))); },
+               input_tensors);
     out << "------Output Tensor------" << std::endl;
     Z.print(out);
     out << "-----EDGE Expression------" << std::endl;
     out << "Expression ranks & dims:" << std::endl;
     for (std::size_t rank_id = 0; rank_id < h_ranks.size(); rank_id++) {
-      out << "  " << h_ranks[rank_id] << ": " << h_dims[rank_id]
-                << std::endl;
+      out << "  " << h_ranks[rank_id] << ": " << h_dims[rank_id] << std::endl;
     }
     out << "Number of work atoms: " << num_atoms << std::endl;
     out << "Number of work tiles: " << num_tiles << std::endl;

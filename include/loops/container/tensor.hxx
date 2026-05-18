@@ -312,14 +312,13 @@ struct tensor_t {
     out << "Tensor " << name << std::endl;
     out << "  Ranks & Dims:" << std::endl;
     for (std::size_t rank_id = 0; rank_id < h_ranks.size(); rank_id++) {
-      out << "    " << h_ranks[rank_id] << ": " << h_dims[rank_id]
-                << std::endl;
+      out << "    " << h_ranks[rank_id] << ": " << h_dims[rank_id] << std::endl;
     }
     out << "  NNZs: " << nnzs << std::endl;
     out << "  Coordinates & Values:" << std::endl;
     for (std::size_t val_idx = 0; val_idx < nnzs; val_idx++) {
       out << "    " << h_coords[val_idx] << ": " << h_values[val_idx]
-                << std::endl;
+          << std::endl;
     }
   }
 

@@ -214,5 +214,6 @@ int main(int argc, char** argv) {
             << ".mtx,M=" << M << ",K=" << K << ",N=" << N
             << ",time(ms)=" << timer.milliseconds() << std::endl;
 
-  tracker.generate_output<edge_expr_t, expr_coord_t>(edge_expr, "spgemm_thread_mapped_coordinate");
+  tracker.generate_output<edge_expr_t, expr_coord_t>(
+      edge_expr, "spgemm_thread_mapped_coordinate");
 }
