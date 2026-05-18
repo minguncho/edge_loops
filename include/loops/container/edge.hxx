@@ -22,6 +22,7 @@
 #pragma once
 
 #include <loops/error.hxx>
+#include <algorithm>
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
@@ -157,6 +158,8 @@ struct edge_t {
         num_tiles(0) {
     error::throw_if_exception((ranks.size() != dims.size()),
                               "edge_expr_t(): ranks.size() != dims.size()!\n");
+    error::throw_if_exception((ranks.size() != expr_coord_t::get_N()),
+                              "edge_expr_t(): ranks.size() != expr_coord_t::get_N()!\n");
     validate_input_tensors();
   }
 
@@ -243,12 +246,13 @@ struct edge_t {
   }
 
   /**
-   * @brief Build a list of interation points on the host.
+   * @brief Build a list of intersected interation points on the host.
    *
    * Go through each input tensors' coordinates and
-   * collect existing iteration points.
+   * collect intersected iteration points. These are
+   * coordinates that all input tensors have a nz value.
    */
-  void expand_iteration_points() {
+  void expand_intersected_iteration_points() {
     std::tuple<
         tensor_t<index_t, value_t, input_coord_t, memory_space_t::host>...>
         h_input_tensors = input_tensors;
@@ -344,6 +348,41 @@ struct edge_t {
     // Save back to class storage
     coords = vector_t<expr_coord_t, space>(h_coords.begin(), h_coords.end());
     num_atoms = h_coords.size();
+  }
+
+  /**
+   * @brief Build a list of union interation points on the host.
+   *
+   * Go through each input tensors' coordinates and
+   * collect union iteration points. These are
+   * coordinates that any input tensors have a nz value.
+   */
+  void expand_union_iteration_points() {
+    std::tuple<
+        tensor_t<index_t, value_t, input_coord_t, memory_space_t::host>...>
+        h_input_tensors = input_tensors;
+    std::vector<expr_coord_t> h_coords;
+    vector_t<char, memory_space_t::host> h_ranks = ranks;
+
+    std::apply(
+        [&](auto&... tensor) {
+          (
+              [&](auto& t) {
+                // Check tensor ranks == expression ranks
+                for (std::size_t rank_id = 0; rank_id < h_ranks.size(); rank_id++) {
+                  error::throw_if_exception((h_ranks[rank_id] != t.ranks[rank_id]),
+                    "expand_union_iteration_points(): Tensor rank mismatch!\n");
+                }
+                for (auto& coord : t.coords) {
+                  if (std::find(h_coords.begin(), h_coords.end(), coord) == h_coords.end())
+                    h_coords.push_back(coord);
+                }
+              }(tensor),
+              ...);
+        },
+        h_input_tensors);
+    
+    coords = vector_t<expr_coord_t, space>(h_coords.begin(), h_coords.end());
   }
 
   /**

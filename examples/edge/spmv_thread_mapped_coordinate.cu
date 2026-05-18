@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
                              expr_coord_t, Z_coord_t, A_coord_t, B_coord_t>;
 
   edge_expr_t edge_expr(expr_ranks, expr_dims, Z, A, B);
-  edge_expr.expand_iteration_points();
+  edge_expr.expand_intersected_iteration_points();
   edge_expr.partition_coordinate_space({2, 2});
 
   using tile_id_t = std::size_t;
