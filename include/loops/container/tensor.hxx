@@ -172,7 +172,8 @@ struct tensor_t {
       h_coords[val_id].r[0] = val_id;
       h_values[val_id] = h_vec[val_id];
 
-      if (h_values[val_id] != 0) nnzs++;
+      if (h_values[val_id] != 0)
+        nnzs++;
     }
     coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());
     values = vector_t<value_t, space>(h_values.begin(), h_values.end());
@@ -189,9 +190,7 @@ struct tensor_t {
   tensor_t(std::string name,
            const matrix_t<value_t, rhs_space>& mat,
            vector_t<char, space>& ranks)
-      : name(name),
-        ranks(ranks),
-        nnzs(0) {
+      : name(name), ranks(ranks), nnzs(0) {
     error::throw_if_exception(
         (coord_t::get_N() != 2),
         "tensor_t(): Construction with matrix, coord_t's N is not 2!");
@@ -209,7 +208,8 @@ struct tensor_t {
         h_coords[(r * mat.cols) + c].r[0] = r;
         h_coords[(r * mat.cols) + c].r[1] = c;
         h_values[(r * mat.cols) + c] = m_data[(r * mat.cols) + c];
-        if (h_values[(r * mat.cols) + c] != 0) nnzs++;
+        if (h_values[(r * mat.cols) + c] != 0)
+          nnzs++;
       }
     }
     coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());
@@ -256,7 +256,8 @@ struct tensor_t {
 
     std::size_t new_nnzs = 0;
     for (auto& val : h_values) {
-      if (val != 0) new_nnzs++;
+      if (val != 0)
+        new_nnzs++;
     }
     nnzs = new_nnzs;
   }

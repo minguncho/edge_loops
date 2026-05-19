@@ -1,8 +1,8 @@
 /**
  * Generated Loops code for SpMM.
- * Partition kAtomsPerTile number of work atoms 
+ * Partition kAtomsPerTile number of work atoms
  * in flattened space.
- * 
+ *
  * To be used as a reference, this is
  * what the generated code should look like.
  */
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
 
   edge_expr_t edge_expr(expr_ranks, expr_dims, Z, A, B);
   edge_expr.expand_intersected_iteration_points();
-  
+
   constexpr std::size_t kAtomsPerTile = 2;
 
   using tile_id_t = std::size_t;
@@ -144,8 +144,8 @@ int main(int argc, char** argv) {
   setup_t config(partitioned);
 
   constexpr std::size_t block_size = 128;
-  std::size_t grid_size = math::ceil_div(math::ceil_div(edge_expr.num_atoms, kAtomsPerTile), 
-                                         block_size);
+  std::size_t grid_size = math::ceil_div(
+      math::ceil_div(edge_expr.num_atoms, kAtomsPerTile), block_size);
   cudaStream_t stream = 0;
 
   tracker_t<atom_id_t> tracker(edge_expr.num_atoms, block_size * grid_size);
@@ -222,6 +222,6 @@ int main(int argc, char** argv) {
     std::cout << "seed=" << parameters.seed_value << ",";
   std::cout << "time(ms)=" << timer.milliseconds() << std::endl;
 
-  tracker.generate_output<edge_expr_t, expr_coord_t>(
-      edge_expr, "spmm_thread_mapped_flat");
+  tracker.generate_output<edge_expr_t, expr_coord_t>(edge_expr,
+                                                     "spmm_thread_mapped_flat");
 }

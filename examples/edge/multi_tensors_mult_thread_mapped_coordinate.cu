@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
       grid_size, block_size, config, edge_expr.coords.data().get(),
       Z.coords.data().get(), A.coords.data().get(), B.coords.data().get(),
       C.coords.data().get(), Z.values.data().get(), A.values.data().get(),
-      B.values.data().get(), C.values.data().get(), Z.coords.size(), A.nnzs, 
+      B.values.data().get(), C.values.data().get(), Z.coords.size(), A.nnzs,
       B.nnzs, C.nnzs, tracker.coord_tid.data().get());
   cudaStreamSynchronize(stream);
   timer.stop();

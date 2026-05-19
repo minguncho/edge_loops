@@ -1,8 +1,8 @@
 /**
  * Generated Loops code for SpGEMM.
- * Partition kAtomsPerTile number of work atoms 
+ * Partition kAtomsPerTile number of work atoms
  * in flattened space.
- * 
+ *
  * To be used as a reference, this is
  * what the generated code should look like.
  */
@@ -145,8 +145,8 @@ int main(int argc, char** argv) {
   setup_t config(partitioned);
 
   constexpr std::size_t block_size = 128;
-  std::size_t grid_size = math::ceil_div(math::ceil_div(edge_expr.num_atoms, kAtomsPerTile), 
-                                         block_size);
+  std::size_t grid_size = math::ceil_div(
+      math::ceil_div(edge_expr.num_atoms, kAtomsPerTile), block_size);
   cudaStream_t stream = 0;
 
   tracker_t<atom_id_t> tracker(edge_expr.num_atoms, block_size * grid_size);

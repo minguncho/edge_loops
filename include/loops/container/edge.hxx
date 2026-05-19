@@ -465,14 +465,14 @@ struct edge_t {
     }
     out << "Number of work atoms: " << num_atoms << std::endl;
     out << "Number of work tiles: " << num_tiles << std::endl;
-    if (num_tiles == 0) { // No partitioning was called, print out all coordinates
+    if (num_tiles ==
+        0) {  // No partitioning was called, print out all coordinates
       out << "Coordinates: ";
       for (std::size_t atom_id = 0; atom_id < num_atoms; atom_id++) {
         out << h_coords[atom_id] << " ";
       }
       out << std::endl;
-    }
-    else {
+    } else {
       for (std::size_t tile_id = 0; tile_id < num_tiles; tile_id++) {
         std::size_t start = h_tile_offsets[tile_id];
         std::size_t end = h_tile_offsets[tile_id + 1];
@@ -483,9 +483,8 @@ struct edge_t {
           out << h_coords[start] << " ";
         }
         out << std::endl;
-      }      
+      }
     }
-
   }
 
 };  // struct edge_expr
