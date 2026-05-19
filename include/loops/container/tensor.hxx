@@ -155,7 +155,7 @@ struct tensor_t {
    */
   template <typename vec_t>
   tensor_t(std::string name, const vec_t& vec, char rank)
-      : name(name), nnzs(vec.size()), values(vec) {
+      : name(name), nnzs(0) {
     error::throw_if_exception(
         (coord_t::get_N() != 1),
         "tensor_t(): Construction with vector, coord_t's N is not 1!");
@@ -165,11 +165,17 @@ struct tensor_t {
     std::vector<std::size_t> h_dims = {vec.size()};
     dims = vector_t<std::size_t, space>(h_dims.begin(), h_dims.end());
 
-    std::vector<coord_t> h_coords(nnzs);
-    for (std::size_t nz = 0; nz < nnzs; nz++) {
-      h_coords[nz].r[0] = nz;
+    vector_t<value_t, memory_space_t::host> h_vec = vec;
+    std::vector<coord_t> h_coords(h_vec.size());
+    std::vector<value_t> h_values(h_vec.size());
+    for (std::size_t val_id = 0; val_id < h_vec.size(); val_id++) {
+      h_coords[val_id].r[0] = val_id;
+      h_values[val_id] = h_vec[val_id];
+
+      if (h_vec[val_id] != 0) nnzs++;
     }
     coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());
+    values = vector_t<value_t, space>(h_values.begin(), h_values.end());
   }
 
   /**
@@ -185,8 +191,7 @@ struct tensor_t {
            vector_t<char, space>& ranks)
       : name(name),
         ranks(ranks),
-        nnzs(mat.rows * mat.cols),
-        values(mat.m_data) {
+        nnzs(0) {
     error::throw_if_exception(
         (coord_t::get_N() != 2),
         "tensor_t(): Construction with matrix, coord_t's N is not 2!");
@@ -195,14 +200,19 @@ struct tensor_t {
     dims = vector_t<std::size_t, space>(h_dims.begin(), h_dims.end());
 
     // Copy coords from mat
-    std::vector<coord_t> h_coords(nnzs);
+    vector_t<value_t, memory_space_t::host> m_data = mat.m_data;
+    std::vector<coord_t> h_coords(mat.rows * mat.cols);
+    std::vector<value_t> h_values(mat.rows * mat.cols);
+
     for (std::size_t r = 0; r < mat.rows; r++) {
       for (std::size_t c = 0; c < mat.cols; c++) {
         h_coords[(r * mat.cols) + c].r[0] = r;
         h_coords[(r * mat.cols) + c].r[1] = c;
+        h_values[(r * mat.cols) + c] = m_data[(r * mat.cols) + c];
       }
     }
     coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());
+    values = vector_t<value_t, space>(h_values.begin(), h_values.end());
   }
 
   /**
@@ -234,6 +244,20 @@ struct tensor_t {
   __host__ __device__ std::size_t get_dim(char rank) {
     std::size_t rank_idx = get_rank_idx(rank);
     return dims[rank_idx];
+  }
+
+  /**
+   * @brief Update nnzs by iterating over values on the host.
+   *
+   */
+  __host__ void update_nnzs() {
+    vector_t<value_t, memory_space_t::host> h_values = values;
+
+    std::size_t new_nnzs = 0;
+    for (auto& val : h_values) {
+      if (val != 0) new_nnzs++;
+    }
+    nnzs = new_nnzs;
   }
 
   /**
@@ -316,7 +340,7 @@ struct tensor_t {
     }
     out << "  NNZs: " << nnzs << std::endl;
     out << "  Coordinates & Values:" << std::endl;
-    for (std::size_t val_idx = 0; val_idx < nnzs; val_idx++) {
+    for (std::size_t val_idx = 0; val_idx < h_values.size(); val_idx++) {
       out << "    " << h_coords[val_idx] << ": " << h_values[val_idx]
           << std::endl;
     }

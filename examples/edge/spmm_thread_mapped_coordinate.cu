@@ -34,7 +34,7 @@ __global__ void __edge_thread_mapped(setup_t config,
                                      value_t* Z_values,
                                      value_t* A_values,
                                      value_t* B_values,
-                                     std::size_t Z_nnzs,
+                                     std::size_t Z_num_coords,
                                      std::size_t A_nnzs,
                                      std::size_t B_nnzs,
                                      int* coords_tid) {
@@ -60,9 +60,9 @@ __global__ void __edge_thread_mapped(setup_t config,
         }
       }
 
-      for (std::size_t nz = 0; nz < Z_nnzs; nz++) {
-        if (Z_coords[nz] == Z_coord_t{m, n}) {
-          atomicAdd(&Z_values[nz], A_val * B_val);
+      for (std::size_t coord_id = 0; coord_id < Z_num_coords; coord_id++) {
+        if (Z_coords[coord_id] == Z_coord_t{m, n}) {
+          atomicAdd(&Z_values[coord_id], A_val * B_val);
           break;
         }
       }
@@ -112,6 +112,7 @@ int main(int argc, char** argv) {
                                            B_mat.m_data.end(), 1, 10);
   }
   tensor_t<index_t, value_t, B_coord_t> B("B", B_mat, B_ranks);
+  B.update_nnzs();
 
   thrust::device_vector<char> Z_ranks = {'M', 'N'};
   matrix_t<value_t> Z_mat(M, N);
@@ -156,9 +157,11 @@ int main(int argc, char** argv) {
       grid_size, block_size, config, edge_expr.coords.data().get(),
       Z.coords.data().get(), A.coords.data().get(), B.coords.data().get(),
       Z.values.data().get(), A.values.data().get(), B.values.data().get(),
-      Z.nnzs, A.nnzs, B.nnzs, tracker.coord_tid.data().get());
+      Z.coords.size(), A.nnzs, B.nnzs, tracker.coord_tid.data().get());
   cudaStreamSynchronize(stream);
   timer.stop();
+
+  Z.update_nnzs();
 
   if (parameters.validate) {
     vector_t<expr_coord_t, memory_space_t::host> h_coords = edge_expr.coords;
@@ -188,9 +191,9 @@ int main(int argc, char** argv) {
         }
       }
 
-      for (std::size_t nz = 0; nz < h_Z.nnzs; nz++) {
-        if (h_Z.coords[nz] == Z_coord_t{m, n}) {
-          h_Z.values[nz] += A_val * B_val;
+      for (std::size_t coord_id = 0; coord_id < Z.coords.size(); coord_id++) {
+        if (h_Z.coords[coord_id] == Z_coord_t{m, n}) {
+          h_Z.values[coord_id] += A_val * B_val;
           break;
         }
       }

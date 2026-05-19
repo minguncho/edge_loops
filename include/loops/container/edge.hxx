@@ -53,7 +53,7 @@ struct edge_t {
   vector_t<std::size_t, space>
       dims;  /// List of dimensions corresponding to each rank
 
-  tensor_t<index_t, value_t, Z_coord_t, space> Z;  /// Output Tensor Z
+  tensor_t<index_t, value_t, Z_coord_t, space>& Z;  /// Output Tensor Z
   std::tuple<tensor_t<index_t, value_t, input_coord_t, space>...>
       input_tensors;  /// Input Tensors
 
@@ -104,7 +104,7 @@ struct edge_t {
   edge_t()
       : ranks(),
         dims(),
-        Z(),
+        Z(nullptr),
         input_tensors(),
         coords(),
         num_atoms(0),
@@ -465,17 +465,27 @@ struct edge_t {
     }
     out << "Number of work atoms: " << num_atoms << std::endl;
     out << "Number of work tiles: " << num_tiles << std::endl;
-    for (std::size_t tile_id = 0; tile_id < num_tiles; tile_id++) {
-      std::size_t start = h_tile_offsets[tile_id];
-      std::size_t end = h_tile_offsets[tile_id + 1];
-
-      out << "  Tile #" << tile_id << std::endl;
-      out << "    Coordinates: ";
-      for (; start < end; start++) {
-        out << h_coords[start] << " ";
+    if (num_tiles == 0) { // No partitioning was called, print out all coordinates
+      out << "Coordinates: ";
+      for (std::size_t atom_id = 0; atom_id < num_atoms; atom_id++) {
+        out << h_coords[atom_id] << " ";
       }
       out << std::endl;
     }
+    else {
+      for (std::size_t tile_id = 0; tile_id < num_tiles; tile_id++) {
+        std::size_t start = h_tile_offsets[tile_id];
+        std::size_t end = h_tile_offsets[tile_id + 1];
+
+        out << "  Tile #" << tile_id << std::endl;
+        out << "    Coordinates: ";
+        for (; start < end; start++) {
+          out << h_coords[start] << " ";
+        }
+        out << std::endl;
+      }      
+    }
+
   }
 
 };  // struct edge_expr
