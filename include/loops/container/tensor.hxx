@@ -172,7 +172,7 @@ struct tensor_t {
       h_coords[val_id].r[0] = val_id;
       h_values[val_id] = h_vec[val_id];
 
-      if (h_vec[val_id] != 0) nnzs++;
+      if (h_values[val_id] != 0) nnzs++;
     }
     coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());
     values = vector_t<value_t, space>(h_values.begin(), h_values.end());
@@ -209,6 +209,7 @@ struct tensor_t {
         h_coords[(r * mat.cols) + c].r[0] = r;
         h_coords[(r * mat.cols) + c].r[1] = c;
         h_values[(r * mat.cols) + c] = m_data[(r * mat.cols) + c];
+        if (h_values[(r * mat.cols) + c] != 0) nnzs++;
       }
     }
     coords = vector_t<coord_t, space>(h_coords.begin(), h_coords.end());

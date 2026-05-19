@@ -112,7 +112,6 @@ int main(int argc, char** argv) {
                                            B_mat.m_data.end(), 1, 10);
   }
   tensor_t<index_t, value_t, B_coord_t> B("B", B_mat, B_ranks);
-  B.update_nnzs();
 
   thrust::device_vector<char> Z_ranks = {'M', 'N'};
   matrix_t<value_t> Z_mat(M, N);
