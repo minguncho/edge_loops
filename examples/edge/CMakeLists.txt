@@ -2,6 +2,9 @@ set(LOOPS_EDGE_SOURCES
   spmv_thread_mapped_coordinate.cu
   spmm_thread_mapped_coordinate.cu
   spgemm_thread_mapped_coordinate.cu
+  spmv_thread_mapped_position.cu
+  spmm_thread_mapped_position.cu
+  spgemm_thread_mapped_position.cu
   spmv_thread_mapped_flat.cu
   spmm_thread_mapped_flat.cu
   spgemm_thread_mapped_flat.cu

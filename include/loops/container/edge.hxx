@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include <loops/container/fibertree.hxx>
 #include <loops/error.hxx>
 #include <algorithm>
 #include <unordered_set>
@@ -437,9 +438,49 @@ struct edge_t {
       h_tile_offsets.push_back(h_flattened_coords.size());
     }
 
-    coords = vector_t<expr_coord_t, memory_space_t::host>(
+    coords = vector_t<expr_coord_t, space>(
         h_flattened_coords.begin(), h_flattened_coords.end());
-    tile_offsets = vector_t<std::size_t, memory_space_t::host>(
+    tile_offsets = vector_t<std::size_t, space>(
+        h_tile_offsets.begin(), h_tile_offsets.end());
+    num_tiles = h_tile_offsets.size() - 1;
+  }
+
+  /**
+   * @brief Perform partition on position space on the host
+   *
+   * @param part_sizes List of partition size for each rank
+   */
+  void partition_position_space(std::vector<std::size_t> part_sizes) {
+    error::throw_if_exception(
+        (part_sizes.size() != dims.size()),
+        "partition_position_space(): Invalid size of part_size()! Not equal "
+        "to number of unique ranks\n");
+
+    vector_t<expr_coord_t, memory_space_t::host> h_coords = coords;
+
+    // Construct a fibertree of h_coords
+    FiberTree<index_t, expr_coord_t> tree(h_coords);
+    auto tileMap = tree.gather_position_space(part_sizes);
+
+    std::vector<expr_coord_t> h_flattened_coords;
+    h_flattened_coords.reserve(h_coords.size());
+    std::vector<std::size_t> h_tile_offsets;
+    h_tile_offsets.push_back(0);
+
+    for (auto& [_, workAtoms] : tileMap) {
+      for (auto& atom : workAtoms) {
+        expr_coord_t atom_coord;
+        for (std::size_t i = 0; i < expr_coord_t::get_N(); i++) {
+          atom_coord.r[i] = atom[i];
+        }
+        h_flattened_coords.push_back(atom_coord);
+      }
+      h_tile_offsets.push_back(h_flattened_coords.size());
+    }
+
+    coords = vector_t<expr_coord_t, space>(
+        h_flattened_coords.begin(), h_flattened_coords.end());
+    tile_offsets = vector_t<std::size_t, space>(
         h_tile_offsets.begin(), h_tile_offsets.end());
     num_tiles = h_tile_offsets.size() - 1;
   }
