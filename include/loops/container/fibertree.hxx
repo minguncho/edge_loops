@@ -36,15 +36,14 @@ struct FiberNode {
  * @tparam expr_coord_t Type of coordinate container of iteration
  *                      space of edge expression.
  */
-template <typename index_t,
-          typename expr_coord_t>
+template <typename index_t, typename expr_coord_t>
 struct FiberTree {
   FiberNode<index_t> root;
   std::size_t max_depth = expr_coord_t::get_N();
 
   /**
    * @brief Construct a FiberTree using coordinates in iteration space.
-   * 
+   *
    * @param ranks List of coordinates in iteration space (on host side).
    */
   FiberTree(vector_t<expr_coord_t, memory_space_t::host> h_coords) {
@@ -66,28 +65,29 @@ struct FiberTree {
 
   /**
    * @brief Recursive helper for DFS traversal of FiberTree.
-   *        Used for gathering coordinates based on position 
+   *        Used for gathering coordinates based on position
    *        space partitioning.
-   * 
+   *
    * @param current_node    Current Node of FiberTree
    * @param current_depth   Current depth of FiberTree
    * @param part_sizes      List of partition size for each rank
    * @param current_path    Current collected path/coordinate
    * @param current_tile_id TileID corresponding to current_path
-   * @param tile_map        TileID : List of associated coordinates 
+   * @param tile_map        TileID : List of associated coordinates
    */
-  void gather_coord_recursive(FiberNode<index_t>* current_node,
-                              std::size_t current_depth,
-                              std::vector<std::size_t>& part_sizes,
-                              std::vector<index_t>& current_path,
-                              std::vector<index_t>& current_tile_id,
-                              std::map<std::vector<index_t>, std::vector<std::vector<index_t>>>& tile_map) {
-
+  void gather_coord_recursive(
+      FiberNode<index_t>* current_node,
+      std::size_t current_depth,
+      std::vector<std::size_t>& part_sizes,
+      std::vector<index_t>& current_path,
+      std::vector<index_t>& current_tile_id,
+      std::map<std::vector<index_t>, std::vector<std::vector<index_t>>>&
+          tile_map) {
     if (current_depth == part_sizes.size() || current_node->children.empty()) {
       tile_map[current_tile_id].push_back(current_path);
       return;
     }
-    
+
     std::size_t P = part_sizes[current_depth];
     std::size_t child_ord_ind = 0;
 
@@ -95,10 +95,11 @@ struct FiberTree {
       index_t depthTileId = static_cast<index_t>(child_ord_ind / P);
       current_path.push_back(index);
       current_tile_id.push_back(depthTileId);
-      
+
       // Recurse deeper
-      gather_coord_recursive(childNode.get(), current_depth + 1, part_sizes, current_path, current_tile_id, tile_map);
-      
+      gather_coord_recursive(childNode.get(), current_depth + 1, part_sizes,
+                             current_path, current_tile_id, tile_map);
+
       // Backtrack state
       current_tile_id.pop_back();
       current_path.pop_back();
@@ -106,7 +107,6 @@ struct FiberTree {
       // Advance to the next sequential child position
       child_ord_ind++;
     }
-
   }
 
   /**
@@ -114,14 +114,16 @@ struct FiberTree {
    *
    * @param part_sizes List of partition size for each rank
    */
-  std::map<std::vector<index_t>, std::vector<std::vector<index_t>>> gather_position_space(std::vector<std::size_t>& part_sizes) {
+  std::map<std::vector<index_t>, std::vector<std::vector<index_t>>>
+  gather_position_space(std::vector<std::size_t>& part_sizes) {
     std::map<std::vector<index_t>, std::vector<std::vector<index_t>>> tile_map;
     std::vector<index_t> current_path;
     std::vector<index_t> current_tile_id;
-    
+
     // Start DFS from the root at Depth 0
-    gather_coord_recursive(&root, 0, part_sizes, current_path, current_tile_id, tile_map);
-    
+    gather_coord_recursive(&root, 0, part_sizes, current_path, current_tile_id,
+                           tile_map);
+
     return tile_map;
   }
 
@@ -147,8 +149,9 @@ struct FiberTree {
         }
         checkCopy.pop();
       }
-      
-      if (!hasChildren) break;
+
+      if (!hasChildren)
+        break;
 
       std::cout << "Depth: " << currentDepth << std::endl;
 
@@ -163,11 +166,13 @@ struct FiberTree {
           bool first = true;
 
           for (const auto& [index, childNode] : currentParent->children) {
-            if (!first) std::cout << ", ";
+            if (!first)
+              std::cout << ", ";
             std::cout << index;
             first = false;
 
-            // Queue this child up to act as a parent container in the next depth level
+            // Queue this child up to act as a parent container in the next
+            // depth level
             parentQueue.push(childNode.get());
           }
 
@@ -179,7 +184,6 @@ struct FiberTree {
       currentDepth++;
     }
   }
-
 };
 
-}
+}  // namespace loops

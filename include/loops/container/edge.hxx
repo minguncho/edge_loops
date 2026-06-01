@@ -438,10 +438,10 @@ struct edge_t {
       h_tile_offsets.push_back(h_flattened_coords.size());
     }
 
-    coords = vector_t<expr_coord_t, space>(
-        h_flattened_coords.begin(), h_flattened_coords.end());
-    tile_offsets = vector_t<std::size_t, space>(
-        h_tile_offsets.begin(), h_tile_offsets.end());
+    coords = vector_t<expr_coord_t, space>(h_flattened_coords.begin(),
+                                           h_flattened_coords.end());
+    tile_offsets = vector_t<std::size_t, space>(h_tile_offsets.begin(),
+                                                h_tile_offsets.end());
     num_tiles = h_tile_offsets.size() - 1;
   }
 
@@ -478,10 +478,10 @@ struct edge_t {
       h_tile_offsets.push_back(h_flattened_coords.size());
     }
 
-    coords = vector_t<expr_coord_t, space>(
-        h_flattened_coords.begin(), h_flattened_coords.end());
-    tile_offsets = vector_t<std::size_t, space>(
-        h_tile_offsets.begin(), h_tile_offsets.end());
+    coords = vector_t<expr_coord_t, space>(h_flattened_coords.begin(),
+                                           h_flattened_coords.end());
+    tile_offsets = vector_t<std::size_t, space>(h_tile_offsets.begin(),
+                                                h_tile_offsets.end());
     num_tiles = h_tile_offsets.size() - 1;
   }
 
