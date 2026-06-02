@@ -68,6 +68,10 @@ struct edge_t {
       tile_offsets;  /// Tile offsets collected from partitioning
   std::size_t num_tiles;
 
+  // Fibertree (used for position space partitioning)
+  FiberTree<index_t, expr_coord_t> fibertree;
+
+private:
   /**
    * @brief Validate input tensors on host.
    *
@@ -98,6 +102,89 @@ struct edge_t {
         "validate_input_tensors(): Empty set of tensor names!\n");
   }
 
+  /**
+   * @brief Collects all valid unique coordinate values
+   * for a target rank, filtered by the dimensions that have
+   * already been bound in the global expression space.
+   * @note To be used on the host side
+   *
+   * @param tensor             Current tensor object.
+   * @param target_rank        Current targeted rank.
+   * @param current_expr_coord The global workspace tracking
+   *                           currently bound coordinate values.
+   */
+  template <typename cur_tensor_t>
+  __host__ std::unordered_set<index_t> get_tensor_active_coordinates(
+      cur_tensor_t& tensor,
+      char target_rank,
+      expr_coord_t& current_expr_coord) {
+    std::unordered_set<index_t> valid_values;
+    std::size_t target_local_idx = 0;
+    bool has_target_rank = false;
+
+    // Identify which of this tensor's local ranks have already been bound
+    // globally.
+    struct bound_mapping_t {
+      std::size_t local_idx;
+      std::size_t global_idx;
+    };
+    std::vector<bound_mapping_t> active_filters;
+
+    for (std::size_t i = 0; i < tensor.ranks.size(); ++i) {
+      char local_rank = tensor.ranks[i];
+
+      if (local_rank == target_rank) {
+        target_local_idx = i;
+        has_target_rank = true;
+        continue;
+      }
+
+      // Check if this other rank has already been bound in the global
+      // expression engine. We know its rank index in the global expression
+      // space via get_expr_rank_idx.
+      std::size_t global_idx = get_expr_rank_idx(local_rank);
+
+      // Safety check: Does the backtracking engine consider this rank "already
+      // processed"? Since we process ranks sequentially (0 to N-1), if a rank's
+      // global index mapping is less than the global index mapping of our
+      // target_rank, it means it has already been bound.
+      if (global_idx < get_expr_rank_idx(target_rank)) {
+        active_filters.push_back({i, global_idx});
+      }
+    }
+
+    if (!has_target_rank) {
+      return valid_values;
+    }
+
+    valid_values = tensor.get_active_coordinates(
+        target_local_idx, active_filters, current_expr_coord);
+
+    return valid_values;
+  }
+
+  /**
+   * @brief Find rank idx of given rank
+   *
+   * @param rank Desired rank to find the rank idx
+   */
+  __host__ __device__ std::size_t get_expr_rank_idx(char rank) {
+    for (std::size_t i = 0; i < ranks.size(); ++i) {
+      if (ranks[i] == rank) {
+        return i;
+      }
+    }
+
+#ifdef __CUDA_ARCH__  // Device side error handling
+    printf("get_expr_rank_idx(): rank '%c' not found!\n", rank);
+    return 0;
+#else  // Host side error handling
+    throw error::exception_t(std::string("get_expr_rank_idx(): rank '") + rank +
+                             "' not found!\n");
+#endif
+  }
+
+public:
   /**
    * @brief Default Constructor
    *
@@ -163,88 +250,6 @@ struct edge_t {
         (ranks.size() != expr_coord_t::get_N()),
         "edge_expr_t(): ranks.size() != expr_coord_t::get_N()!\n");
     validate_input_tensors();
-  }
-
-  /**
-   * @brief Find rank idx of given rank
-   *
-   * @param rank Desired rank to find the rank idx
-   */
-  __host__ __device__ std::size_t get_expr_rank_idx(char rank) {
-    for (std::size_t i = 0; i < ranks.size(); ++i) {
-      if (ranks[i] == rank) {
-        return i;
-      }
-    }
-
-#ifdef __CUDA_ARCH__  // Device side error handling
-    printf("get_expr_rank_idx(): rank '%c' not found!\n", rank);
-    return 0;
-#else  // Host side error handling
-    throw error::exception_t(std::string("get_expr_rank_idx(): rank '") + rank +
-                             "' not found!\n");
-#endif
-  }
-
-  /**
-   * @brief Collects all valid unique coordinate values
-   * for a target rank, filtered by the dimensions that have
-   * already been bound in the global expression space.
-   * @note To be used on the host side
-   *
-   * @param tensor             Current tensor object.
-   * @param target_rank        Current targeted rank.
-   * @param current_expr_coord The global workspace tracking
-   *                           currently bound coordinate values.
-   */
-  template <typename cur_tensor_t>
-  __host__ std::unordered_set<index_t> get_tensor_active_coordinates(
-      cur_tensor_t& tensor,
-      char target_rank,
-      expr_coord_t& current_expr_coord) {
-    std::unordered_set<index_t> valid_values;
-    std::size_t target_local_idx = 0;
-    bool has_target_rank = false;
-
-    // Identify which of this tensor's local ranks have already been bound
-    // globally.
-    struct bound_mapping_t {
-      std::size_t local_idx;
-      std::size_t global_idx;
-    };
-    std::vector<bound_mapping_t> active_filters;
-
-    for (std::size_t i = 0; i < tensor.ranks.size(); ++i) {
-      char local_rank = tensor.ranks[i];
-
-      if (local_rank == target_rank) {
-        target_local_idx = i;
-        has_target_rank = true;
-        continue;
-      }
-
-      // Check if this other rank has already been bound in the global
-      // expression engine. We know its rank index in the global expression
-      // space via get_expr_rank_idx.
-      std::size_t global_idx = get_expr_rank_idx(local_rank);
-
-      // Safety check: Does the backtracking engine consider this rank "already
-      // processed"? Since we process ranks sequentially (0 to N-1), if a rank's
-      // global index mapping is less than the global index mapping of our
-      // target_rank, it means it has already been bound.
-      if (global_idx < get_expr_rank_idx(target_rank)) {
-        active_filters.push_back({i, global_idx});
-      }
-    }
-
-    if (!has_target_rank) {
-      return valid_values;
-    }
-
-    valid_values = tensor.get_active_coordinates(
-        target_local_idx, active_filters, current_expr_coord);
-
-    return valid_values;
   }
 
   /**
@@ -446,21 +451,38 @@ struct edge_t {
   }
 
   /**
+   * @brief Flatten ranks on the host
+   *
+   * @param target_ranks List of ranks to flatten
+   */
+  void flatten_ranks(std::vector<char> target_ranks) {
+    vector_t<expr_coord_t, memory_space_t::host> h_coords = coords;
+    // Construct a fibertree of h_coords
+    if (fibertree.is_empty()) {
+      fibertree = std::move(FiberTree<index_t, expr_coord_t>(h_coords));
+    }
+
+    std::vector<std::size_t> target_depths;
+    for (auto& rank : target_ranks) {
+      target_depths.push_back(get_expr_rank_idx(rank));
+    }
+
+    fibertree.flatten_depths(target_depths);
+  }
+
+  /**
    * @brief Perform partition on position space on the host
    *
    * @param part_sizes List of partition size for each rank
    */
   void partition_position_space(std::vector<std::size_t> part_sizes) {
-    error::throw_if_exception(
-        (part_sizes.size() != dims.size()),
-        "partition_position_space(): Invalid size of part_size()! Not equal "
-        "to number of unique ranks\n");
 
     vector_t<expr_coord_t, memory_space_t::host> h_coords = coords;
-
     // Construct a fibertree of h_coords
-    FiberTree<index_t, expr_coord_t> tree(h_coords);
-    auto tileMap = tree.gather_position_space(part_sizes);
+    if (fibertree.is_empty()) {
+      fibertree = std::move(FiberTree<index_t, expr_coord_t>(h_coords));
+    }
+    auto tileMap = fibertree.gather_position_space(part_sizes);
 
     std::vector<expr_coord_t> h_flattened_coords;
     h_flattened_coords.reserve(h_coords.size());

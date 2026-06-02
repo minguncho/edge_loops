@@ -127,25 +127,24 @@ int main(int argc, char** argv) {
 
   edge_expr_t edge_expr(expr_ranks, expr_dims, Z, A, B);
   edge_expr.expand_intersected_iteration_points();
-
-  constexpr std::size_t kAtomsPerTile = 2;
+  edge_expr.flatten_ranks({'M', 'K', 'N'});
+  edge_expr.partition_position_space({2});
 
   using tile_id_t = std::size_t;
   using atom_id_t = std::size_t;
   using edge_layout_t = layout::edge<tile_id_t, atom_id_t>;
-  using lay_t = layout::flat_uniform_occupancy<kAtomsPerTile, edge_layout_t>;
 
   using setup_t =
       schedule::setup<schedule::algorithms_t::thread_mapped, 1, 1, tile_id_t,
-                      atom_id_t, std::size_t, std::size_t, lay_t>;
+                      atom_id_t, std::size_t, std::size_t, edge_layout_t>;
 
-  edge_layout_t lay(nullptr, 0, static_cast<atom_id_t>(edge_expr.num_atoms));
-  lay_t partitioned(lay);
-  setup_t config(partitioned);
+  edge_layout_t lay(edge_expr.tile_offsets.data().get(),
+                    static_cast<tile_id_t>(edge_expr.num_tiles),
+                    static_cast<atom_id_t>(edge_expr.num_atoms));
+  setup_t config(lay);
 
   constexpr std::size_t block_size = 128;
-  std::size_t grid_size = math::ceil_div(
-      math::ceil_div(edge_expr.num_atoms, kAtomsPerTile), block_size);
+  std::size_t grid_size = math::ceil_div(edge_expr.num_tiles, block_size);
   cudaStream_t stream = 0;
 
   tracker_t<atom_id_t> tracker(edge_expr.num_atoms, block_size * grid_size);
