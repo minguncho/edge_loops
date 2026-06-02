@@ -71,7 +71,7 @@ struct edge_t {
   // Fibertree (used for position space partitioning)
   FiberTree<index_t, expr_coord_t> fibertree;
 
-private:
+ private:
   /**
    * @brief Validate input tensors on host.
    *
@@ -184,7 +184,7 @@ private:
 #endif
   }
 
-public:
+ public:
   /**
    * @brief Default Constructor
    *
@@ -476,7 +476,6 @@ public:
    * @param part_sizes List of partition size for each rank
    */
   void partition_position_space(std::vector<std::size_t> part_sizes) {
-
     vector_t<expr_coord_t, memory_space_t::host> h_coords = coords;
     // Construct a fibertree of h_coords
     if (fibertree.is_empty()) {

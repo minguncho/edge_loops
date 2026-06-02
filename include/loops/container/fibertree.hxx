@@ -41,7 +41,7 @@ struct FiberTree {
   FiberNode<index_t> root;
   std::size_t max_depth = expr_coord_t::get_N();
 
-private:
+ private:
   /**
    * @brief Recursive helper for DFS traversal of FiberTree.
    *        Used for gathering coordinates based on position
@@ -93,13 +93,14 @@ private:
 
   /**
    * @brief Recursive helper to flatten specific contiguous depths in the tree.
-   * 
+   *
    * @param current_node  Pointer to the current node being processed.
    * @param current_depth Current depth in the tree.
-   * @param target_depth  The depth level that needs to be absorbed into its parent.
+   * @param target_depth  The depth level that needs to be absorbed into its
+   * parent.
    */
-  void flatten_depths_recursive(FiberNode<index_t>* current_node, 
-                                std::size_t current_depth, 
+  void flatten_depths_recursive(FiberNode<index_t>* current_node,
+                                std::size_t current_depth,
                                 std::size_t target_depth) {
     if (current_node->children.empty()) {
       return;
@@ -107,14 +108,15 @@ private:
 
     // If we are exactly one level above the target depth, we perform the fusion
     if (current_depth == target_depth - 1) {
-      std::map<std::vector<index_t>, std::unique_ptr<FiberNode<index_t>>> flattened_children;
+      std::map<std::vector<index_t>, std::unique_ptr<FiberNode<index_t>>>
+          flattened_children;
 
       for (auto& [parent_indices, child_node] : current_node->children) {
         for (auto& [child_indices, grandchild_node] : child_node->children) {
-          
           // Create a fused key: concatenate parent indices and child indices
           std::vector<index_t> fused_key = parent_indices;
-          fused_key.insert(fused_key.end(), child_indices.begin(), child_indices.end());
+          fused_key.insert(fused_key.end(), child_indices.begin(),
+                           child_indices.end());
 
           // Move the grandchild node up to become a direct child
           flattened_children[fused_key] = std::move(grandchild_node);
@@ -128,16 +130,17 @@ private:
 
     // Otherwise, keep drilling down to reach the target depth
     for (auto& [indices, child_node] : current_node->children) {
-      flatten_depths_recursive(child_node.get(), current_depth + 1, target_depth);
+      flatten_depths_recursive(child_node.get(), current_depth + 1,
+                               target_depth);
     }
   }
 
-public:
+ public:
   /**
    * @brief Default Constructor
    *
    */
-  FiberTree(): root() {};
+  FiberTree() : root() {};
 
   /**
    * @brief Construct a FiberTree using coordinates in iteration space.
@@ -165,9 +168,7 @@ public:
    * @brief Indicates whether FiberTree has been formed.
    *
    */
-  bool is_empty() {
-    return root.children.empty();
-  }
+  bool is_empty() { return root.children.empty(); }
 
   /**
    * @brief Gathers coordinates based on position space partitioning.
@@ -190,28 +191,31 @@ public:
   /**
    * @brief Flattens specified depth levels by fusing parent-child indices.
    *
-   * @param target_depths List of depth indices to absorb into their respective parent levels.
+   * @param target_depths List of depth indices to absorb into their respective
+   * parent levels.
    */
   void flatten_depths(std::vector<std::size_t>& target_depths) {
-    error::throw_if_exception((target_depths.size() >  max_depth),
-            "flatten_depths(): Number of depths to flatten exceeding max!\n");
+    error::throw_if_exception(
+        (target_depths.size() > max_depth),
+        "flatten_depths(): Number of depths to flatten exceeding max!\n");
 
     error::throw_if_exception((target_depths.size() == 0),
-            "flatten_depths(): Empty input depths!\n");
+                              "flatten_depths(): Empty input depths!\n");
 
-    // Sort depths in descending order to avoid messing up index positions during modification        
+    // Sort depths in descending order to avoid messing up index positions
+    // during modification
     std::vector<std::size_t> sorted_depths = target_depths;
     std::sort(sorted_depths.rbegin(), sorted_depths.rend());
 
     for (std::size_t depth : sorted_depths) {
       if (depth == 0) {
         // Depth 0 cannot be absorbed into a parent because it's the root level
-        continue; 
+        continue;
       }
-      
+
       // Perform the structural compression starting from the root
       flatten_depths_recursive(&root, 0, depth);
-      
+
       // Decrement the max_depth tracking as the tree is now one level shorter
       max_depth--;
     }
